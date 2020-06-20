@@ -5,13 +5,13 @@ if (gl === null) {
     alert("No WebGL support in your browser");
 }
 
-// if (navigator.requestMIDIAccess) {
-//     navigator.requestMIDIAccess({
-//         sysex: false
-//     }).then(onMIDISuccess, onMIDIFailure);
-// } else {
-//     alert("No WebMIDI support in your browser.");
-// }
+if (navigator.requestMIDIAccess) {
+    navigator.requestMIDIAccess({
+        sysex: false
+    }).then(onMIDISuccess, onMIDIFailure);
+} else {
+    alert("No WebMIDI support in your browser.");
+}
 
 const white_key_count = 52;
 const black_key_count = 36;
