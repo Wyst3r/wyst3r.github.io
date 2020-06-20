@@ -248,15 +248,13 @@ function drawScene(time) {
     requestAnimationFrame(drawScene);
 }
 
-/*
-// midi functions
 function onMIDISuccess(midiAccess) {
-    document.getElementById('supported').innerHTML = 'WebMIDI is supported';
+    document.getElementById('debug').innerHTML = 'WebMIDI is supported';
     
     var inputs = midiAccess.inputs;
     var outputs = midiAccess.outputs;
 
-    document.getElementById('message').innerHTML = 'Found ' + inputs.size + ' inputs and ' + outputs.size + ' outputs.';
+    document.getElementById('debug').innerHTML = 'Found ' + inputs.size + ' inputs and ' + outputs.size + ' outputs.';
 
     for (var input of midiAccess.inputs.values()) {
         input.onmidimessage = onMIDIMessage;
@@ -264,10 +262,10 @@ function onMIDISuccess(midiAccess) {
 }
 
 function onMIDIFailure(e) {
-    document.getElementById('supported').innerHTML = 'WebMIDI is not supported';
+    document.getElementById('debug').innerHTML = 'WebMIDI is not supported';
 }
 
-function onMIDIMessage(midiMessage) {
+/*function onMIDIMessage(midiMessage) {
     var command = midiMessage.data[0];
     var note = midiMessage.data[1];
     var velocity = (midiMessage.data.length > 2) ? midiMessage.data[2] : 0; // a velocity value might not be included with a noteOff command
