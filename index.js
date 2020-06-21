@@ -355,9 +355,16 @@ function drawScene(time) {
 function onMIDISuccess(access) {
     var div = document.createElement('div');
     div.style.color = "gray";
-    var text = document.createTextNode('test');
+    var text = document.createTextNode(access.inputs.size);
     div.appendChild(text);
     document.getElementById('inputs').appendChild(div);
+    for (var input of access.inputs.values()) {
+        var div = document.createElement('div');
+        div.style.color = "gray";
+        var text = document.createTextNode(input.name);
+        div.appendChild(text);
+        document.getElementById('inputs').appendChild(div);
+    }
 
     // for (var input of access.inputs.values()) {
     //     input.onmidimessage = onMIDIMessage;
