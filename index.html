@@ -3,20 +3,45 @@
     <head>
         <title>MIDI Test</title>
         <script async src="./index.js"></script>
+        <script async src="./lib/midi-parser.js"></script>
         <style>
             body {
                 margin: 0;
                 background-color: white;
             }
-            canvas {
+            canvas{
+                background-color: white;                
+            }.debug {
+                position: absolute;
+                top: 20px;
+                left: 20px;
+                z-index: 3;
+                color: white;
+                background-color: rgba(0, 0, 128, 0.5);
+                border-radius: 10px;
+                padding: 10px;
+            }
+            #canvas {
                 display: block;
                 width: 100vw;
                 height: 100vh;
             }
+            #tempo {
+                color: gray;
+            }
         </style>
     </head>
     <body">
-        <h4 id="debug"></h4>
-        <canvas id="canvas"></canvas>
+        <div class="debug">
+            <div id="inputs">Inputs:</div>
+            <div id="outputs">Outputs:</div>       
+            <div>
+                <div>Tempo:</div>
+                <div id="tempo">0</div>
+            </div>
+        </div>
+        <div>
+            <canvas id="canvas"></canvas>
+        </div>
     </body>
 </html>
