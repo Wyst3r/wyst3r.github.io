@@ -1,17 +1,27 @@
 const canvas = document.getElementById("canvas");
 const gl = canvas.getContext("webgl");
 
+var inputsList = document.getElementById('inputs');
+
+document.getElementById('tempo').innerText = 'Found ' + 15 + ' inputs';
+
+    var div = document.createElement('div');
+    div.style.color = "gray";
+    var text = document.createTextNode('gay');
+    div.appendChild(text);
+    inputsList.appendChild(div);
+
 if (gl === null) {
     alert("No WebGL support in your browser");
 }
 
-if (navigator.requestMIDIAccess) {
-    navigator.requestMIDIAccess({
-        sysex: false
-    }).then(onMIDISuccess, onMIDIFailure);
-} else {
-    alert("No WebMIDI support in your browser.");
-}
+// if (navigator.requestMIDIAccess) {
+//     navigator.requestMIDIAccess({
+//         sysex: false
+//     }).then(onMIDISuccess, onMIDIFailure);
+// } else {
+//     alert("No WebMIDI support in your browser.");
+// }
 
 // const white_key_count = 52;
 // const black_key_count = 36;
@@ -260,51 +270,51 @@ function resize(gl) {
     }
 }
 
-var info = '';
-var inputs = [];
-var outputs = [];
+// var info = '';
+// var inputs = [];
+// var outputs = [];
 
-function updateInfo() {
-    var inputsList = document.getElementById('inputs');
-    var outputsList = document.getElementById('outputs');
+// function updateInfo() {
+//     var inputsList = document.getElementById('inputs');
+//     var outputsList = document.getElementById('outputs');
 
-    document.getElementById('tempo').innerText = 'Found ' + inputs.length + ' inputs';
+//     document.getElementById('tempo').innerText = 'Found ' + inputs.length + ' inputs';
 
-    if (inputs.length > 0) {
-        for (var input of inputs) {
-            var div = document.createElement('div');
-            div.style.color = "gray";
-            var text = document.createTextNode(input);
-            div.appendChild(text);
-            inputsList.appendChild(div);
-        }
-    }
-    else {
-        var div = document.createElement('div');
-        div.style.color = "gray";
-        var text = document.createTextNode('None');
-        div.appendChild(text);
-        inputsList.appendChild(div);
-    }
+//     if (inputs.length > 0) {
+//         for (var input of inputs) {
+//             var div = document.createElement('div');
+//             div.style.color = "gray";
+//             var text = document.createTextNode(input);
+//             div.appendChild(text);
+//             inputsList.appendChild(div);
+//         }
+//     }
+//     else {
+//         var div = document.createElement('div');
+//         div.style.color = "gray";
+//         var text = document.createTextNode('None');
+//         div.appendChild(text);
+//         inputsList.appendChild(div);
+//     }
 
 
-    if (outputs.length > 0) {
-        for (var output of outputs) {
-            var div = document.createElement('div');
-            div.style.color = "gray";
-            var text = document.createTextNode(output);
-            div.appendChild(text);
-            outputsList.appendChild(div);
-        }
-    }
-    else {
-       var div = document.createElement('div');
-       div.style.color = "gray";
-       var text = document.createTextNode('None');
-       div.appendChild(text);
-       outputsList.appendChild(div);
-    }
-}
+//     if (outputs.length > 0) {
+//         for (var output of outputs) {
+//             var div = document.createElement('div');
+//             div.style.color = "gray";
+//             var text = document.createTextNode(output);
+//             div.appendChild(text);
+//             outputsList.appendChild(div);
+//         }
+//     }
+//     else {
+//        var div = document.createElement('div');
+//        div.style.color = "gray";
+//        var text = document.createTextNode('None');
+//        div.appendChild(text);
+//        outputsList.appendChild(div);
+//     }
+// }
 
 requestAnimationFrame(drawScene);
 
@@ -352,72 +362,72 @@ function drawScene(time) {
     requestAnimationFrame(drawScene);
 }
 
-function onMIDISuccess(access) {
-    for (var input of access.inputs.values()) {
-        input.onmidimessage = onMIDIMessage;
-        inputs.push(input.name);
-    }
-    for (var output of access.outputs.values()) {
-        outputs.push(output.name);
-    }
+// function onMIDISuccess(access) {
+//     for (var input of access.inputs.values()) {
+//         input.onmidimessage = onMIDIMessage;
+//         inputs.push(input.name);
+//     }
+//     for (var output of access.outputs.values()) {
+//         outputs.push(output.name);
+//     }
     
-    updateInfo();
-}
+//     updateInfo();
+// }
 
-function onMIDIFailure(e) {
-    alert('MIDI access request failed');
-}
+// function onMIDIFailure(e) {
+//     alert('MIDI access request failed');
+// }
 
-function onMIDIMessage(message) {
-    var command = message.data[0];
-    var note = message.data[1];
-    var velocity = ((message.data.length > 2) ? message.data[2] : 0);
-    var time = message.timeStamp;
+// function onMIDIMessage(message) {
+//     var command = message.data[0];
+//     var note = message.data[1];
+//     var velocity = ((message.data.length > 2) ? message.data[2] : 0);
+//     var time = message.timeStamp;
 
-    switch (command) {
-        case 144:
-            if (velocity > 0) {
-                onNoteOn(note, time);
-            } else {
-                onNoteOff(note, time);
-            }
-            break;
-        case 152:
-            if (note == 34) {
-                onMetronomeMeasure(time);
-            } else if (note == 33) {
-                onMetronomeBeat(time);
-            }
-        case 128:
-            onNoteOff(note, time);
-            break;
-    }
-}
+//     switch (command) {
+//         case 144:
+//             if (velocity > 0) {
+//                 onNoteOn(note, time);
+//             } else {
+//                 onNoteOff(note, time);
+//             }
+//             break;
+//         case 152:
+//             if (note == 34) {
+//                 onMetronomeMeasure(time);
+//             } else if (note == 33) {
+//                 onMetronomeBeat(time);
+//             }
+//         case 128:
+//             onNoteOff(note, time);
+//             break;
+//     }
+// }
 
-var tempo = 0;
-var prev_measure_start = null;
+// var tempo = 0;
+// var prev_measure_start = null;
 
-function onNoteOn(note, time) {
-    keyStates[note - 21] = KeyStates.PRESSED;
-}
+// function onNoteOn(note, time) {
+//     keyStates[note - 21] = KeyStates.PRESSED;
+// }
 
-function onNoteOff(note, time) {
-    keyStates[note - 21] = KeyStates.NONE;
-}
+// function onNoteOff(note, time) {
+//     keyStates[note - 21] = KeyStates.NONE;
+// }
 
-function onMetronomeMeasure(time) {
-    if (prev_measure_start != null) {
-        tempo = Math.floor((60 * 1000) / ((time - prev_measure_start) / 4));
+// function onMetronomeMeasure(time) {
+//     if (prev_measure_start != null) {
+//         tempo = Math.floor((60 * 1000) / ((time - prev_measure_start) / 4));
 
-        document.getElementById('tempo').innerText = tempo;
-    }
+//         document.getElementById('tempo').innerText = tempo;
+//     }
 
-    prev_measure_start = time;
-}
+//     prev_measure_start = time;
+// }
 
-function onMetronomeBeat(time) {
+// function onMetronomeBeat(time) {
 
-}
+// }
 
 // canvas.addEventListener('mousedown', onMouseDown);
 // canvas.addEventListener('mousemove', onMouseMove);
