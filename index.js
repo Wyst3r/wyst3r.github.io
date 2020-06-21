@@ -420,114 +420,114 @@ function onMetronomeBeat(time) {
 
 }
 
-canvas.addEventListener('mousedown', onMouseDown);
-canvas.addEventListener('mousemove', onMouseMove);
-canvas.addEventListener('mouseup', onMouseUp);
-canvas.addEventListener('mouseleave', onMouseLeave);
-canvas.addEventListener('touchstart', onTouchStart);
-canvas.addEventListener('touchend', onTouchEnd);
-canvas.addEventListener('touchmove', onTouchMove);
-canvas.addEventListener('touchcancel', onTouchCancel);
+// canvas.addEventListener('mousedown', onMouseDown);
+// canvas.addEventListener('mousemove', onMouseMove);
+// canvas.addEventListener('mouseup', onMouseUp);
+// canvas.addEventListener('mouseleave', onMouseLeave);
+// canvas.addEventListener('touchstart', onTouchStart);
+// canvas.addEventListener('touchend', onTouchEnd);
+// canvas.addEventListener('touchmove', onTouchMove);
+// canvas.addEventListener('touchcancel', onTouchCancel);
 
-var isMouseDown = false;
+// var isMouseDown = false;
 
-function onMouseDown(event) {
-    checkKeyPressed('mouse', event);
-    isMouseDown = true;
-}
+// function onMouseDown(event) {
+//     checkKeyPressed('mouse', event);
+//     isMouseDown = true;
+// }
 
-function onMouseMove(event) {
-    if (isMouseDown) {
-        checkKeyPressed('mouse', event);
-    }
-}
+// function onMouseMove(event) {
+//     if (isMouseDown) {
+//         checkKeyPressed('mouse', event);
+//     }
+// }
 
-function onMouseUp(event) {
-    isMouseDown = false;
-    checkKeyReleased('mouse');
-}
+// function onMouseUp(event) {
+//     isMouseDown = false;
+//     checkKeyReleased('mouse');
+// }
 
-function onMouseLeave(event) {
-    onMouseUp(event);
-}
+// function onMouseLeave(event) {
+//     onMouseUp(event);
+// }
 
-var currentTouches = new Map();
+// var currentTouches = new Map();
 
-function onTouchStart(event) {
-    for (var touch of event.touches) {   
-        checkKeyPressed(touch.identifier, event);
-        currentTouches.set(touch.identifier, touch);
-    }
-}
+// function onTouchStart(event) {
+//     for (var touch of event.touches) {   
+//         checkKeyPressed(touch.identifier, event);
+//         currentTouches.set(touch.identifier, touch);
+//     }
+// }
 
-function onTouchEnd(event) {
-    for (var touch of event.touches) {
-        if (currentTouches.has(touch.identifier)) {
-            checkKeyReleased(touch.identifier);
-            currentTouches.delete(touch.identifier)
-        }
-    }
-}
+// function onTouchEnd(event) {
+//     for (var touch of event.touches) {
+//         if (currentTouches.has(touch.identifier)) {
+//             checkKeyReleased(touch.identifier);
+//             currentTouches.delete(touch.identifier)
+//         }
+//     }
+// }
 
-function onTouchMove(event) {
-    for (var touch of event.touches) {
-        if (currentTouches.has(touch.identifier)) {
-            checkKeyPressed(touch.identifier, event);
-        }
-    }
-}
+// function onTouchMove(event) {
+//     for (var touch of event.touches) {
+//         if (currentTouches.has(touch.identifier)) {
+//             checkKeyPressed(touch.identifier, event);
+//         }
+//     }
+// }
 
-function onTouchCancel(event) {
-    onTouchEnd(event);
-}
+// function onTouchCancel(event) {
+//     onTouchEnd(event);
+// }
 
-var idToKeyMap = new Map();
+// var idToKeyMap = new Map();
 
-function checkKeyPressed(id, event) {
-    var x = (-1.0 + (2.0 * (event.clientX / window.innerWidth)));
-    var y = (1.0 - (2.0 * (event.clientY / window.innerHeight)));
+// function checkKeyPressed(id, event) {
+//     var x = (-1.0 + (2.0 * (event.clientX / window.innerWidth)));
+//     var y = (1.0 - (2.0 * (event.clientY / window.innerHeight)));
 
-    var pressedKey = null;
+//     var pressedKey = null;
 
-    if (y > (-1.0 + white_key_height)) {
-        checkKeyReleased(id, event);
-        return;
-    }
+//     if (y > (-1.0 + white_key_height)) {
+//         checkKeyReleased(id, event);
+//         return;
+//     }
 
-    if (y > (-1.0 + white_key_height - black_key_height)) {
-        black_key_offset = black_key_start_offset;
+//     if (y > (-1.0 + white_key_height - black_key_height)) {
+//         black_key_offset = black_key_start_offset;
 
-        for (var key = 0; key < black_key_count; key++) {
-            var start_x = -1.0 + black_key_offset;
-            var end_x = (start_x + black_key_width);
+//         for (var key = 0; key < black_key_count; key++) {
+//             var start_x = -1.0 + black_key_offset;
+//             var end_x = (start_x + black_key_width);
 
-            if (x >= start_x && x <= end_x) {
-                pressedKey = black_keys[key];
-                break;
-            }
+//             if (x >= start_x && x <= end_x) {
+//                 pressedKey = black_keys[key];
+//                 break;
+//             }
 
-            black_key_offset += ((black_key_offsets[(key + 4) % 5] * white_key_width) + black_key_width);
-        }
-    }
+//             black_key_offset += ((black_key_offsets[(key + 4) % 5] * white_key_width) + black_key_width);
+//         }
+//     }
 
-    if (pressedKey == null) {
-        pressedKey = white_keys[Math.floor((x - (-1.0)) / white_key_width)];
-    }
+//     if (pressedKey == null) {
+//         pressedKey = white_keys[Math.floor((x - (-1.0)) / white_key_width)];
+//     }
     
-    if (idToKeyMap.has(id)) {
-        keyStates[idToKeyMap.get(id)] = KeyStates.NONE;
-    }
-    keyStates[pressedKey] = KeyStates.PRESSED;
+//     if (idToKeyMap.has(id)) {
+//         keyStates[idToKeyMap.get(id)] = KeyStates.NONE;
+//     }
+//     keyStates[pressedKey] = KeyStates.PRESSED;
 
-    idToKeyMap.set(id, pressedKey);
-}
+//     idToKeyMap.set(id, pressedKey);
+// }
 
-function checkKeyReleased(id) {
-    if (idToKeyMap.has(id)) {
-        keyStates[idToKeyMap.get(id)] = KeyStates.NONE;
-        idToKeyMap.delete(id);
-    }
-}
+// function checkKeyReleased(id) {
+//     if (idToKeyMap.has(id)) {
+//         keyStates[idToKeyMap.get(id)] = KeyStates.NONE;
+//         idToKeyMap.delete(id);
+//     }
+// }
 
 
 
