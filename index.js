@@ -352,7 +352,6 @@ function drawScene(time) {
 }
 
 function onMIDISuccess(access) {
-    info = 'WebMIDI is supported';
     for (var input of access.inputs.values()) {
         input.onmidimessage = onMIDIMessage;
         inputs.push(input.name);
@@ -365,7 +364,7 @@ function onMIDISuccess(access) {
 }
 
 function onMIDIFailure(e) {
-    info = 'WebMIDI is not supported';
+    alert('MIDI access request failed');
 }
 
 function onMIDIMessage(message) {
@@ -489,6 +488,7 @@ function checkKeyPressed(id, event) {
     var pressedKey = null;
 
     if (y > (-1.0 + white_key_height)) {
+        checkKeyReleased(id, event);
         return;
     }
 
