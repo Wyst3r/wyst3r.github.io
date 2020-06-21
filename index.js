@@ -268,8 +268,6 @@ function updateInfo() {
     var inputsList = document.getElementById('inputs');
     var outputsList = document.getElementById('outputs');
 
-    document.getElementById('tempo').innerText = 'Found ' + inputs.length + ' inputs';
-
     if (inputs.length > 0) {
         for (var input of inputs) {
             var div = document.createElement('div');
