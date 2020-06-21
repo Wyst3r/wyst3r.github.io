@@ -1,27 +1,17 @@
 const canvas = document.getElementById("canvas");
 const gl = canvas.getContext("webgl");
 
-var inputsList = document.getElementById('inputs');
-
-document.getElementById('tempo').innerText = 'Found ' + 15 + ' inputs';
-
-    var div = document.createElement('div');
-    div.style.color = "gray";
-    var text = document.createTextNode('gay');
-    div.appendChild(text);
-    inputsList.appendChild(div);
-
 if (gl === null) {
     alert("No WebGL support in your browser");
 }
 
-// if (navigator.requestMIDIAccess) {
-//     navigator.requestMIDIAccess({
-//         sysex: false
-//     }).then(onMIDISuccess, onMIDIFailure);
-// } else {
-//     alert("No WebMIDI support in your browser.");
-// }
+if (navigator.requestMIDIAccess) {
+    navigator.requestMIDIAccess({
+        sysex: false
+    }).then(onMIDISuccess, onMIDIFailure);
+} else {
+    alert("No WebMIDI support in your browser.");
+}
 
 // const white_key_count = 52;
 // const black_key_count = 36;
@@ -362,21 +352,27 @@ function drawScene(time) {
     requestAnimationFrame(drawScene);
 }
 
-// function onMIDISuccess(access) {
-//     for (var input of access.inputs.values()) {
-//         input.onmidimessage = onMIDIMessage;
-//         inputs.push(input.name);
-//     }
-//     for (var output of access.outputs.values()) {
-//         outputs.push(output.name);
-//     }
-    
-//     updateInfo();
-// }
+function onMIDISuccess(access) {
+    var div = document.createElement('div');
+    div.style.color = "gray";
+    var text = document.createTextNode('test');
+    div.appendChild(text);
+    document.getElementById('inputs').appendChild(div);
 
-// function onMIDIFailure(e) {
-//     alert('MIDI access request failed');
-// }
+    // for (var input of access.inputs.values()) {
+    //     input.onmidimessage = onMIDIMessage;
+    //     inputs.push(input.name);
+    // }
+    // for (var output of access.outputs.values()) {
+    //     outputs.push(output.name);
+    // }
+    
+    //updateInfo();
+}
+
+function onMIDIFailure(e) {
+    alert('MIDI access request failed');
+}
 
 // function onMIDIMessage(message) {
 //     var command = message.data[0];
