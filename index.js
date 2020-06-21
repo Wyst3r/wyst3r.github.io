@@ -13,240 +13,239 @@ if (navigator.requestMIDIAccess) {
     alert("No WebMIDI support in your browser.");
 }
 
-const white_key_count = 52;
-const black_key_count = 36;
+// const white_key_count = 52;
+// const black_key_count = 36;
 
-const white_key_width = ((1.0 - (-1.0)) / white_key_count);
-const white_key_height = 0.2; // Make it depend on aspect ratio?
-const white_to_black_width_ratio = 0.6;
-const white_to_black_height_ratio = 0.65;
+// const white_key_width = ((1.0 - (-1.0)) / white_key_count);
+// const white_key_height = 0.2; // Make it depend on aspect ratio?
+// const white_to_black_width_ratio = 0.6;
+// const white_to_black_height_ratio = 0.65;
 
-var white_key_vertices = [];
-var white_key_colors = [];
-var white_key_indices = [];
+// var white_key_vertices = [];
+// var white_key_colors = [];
+// var white_key_indices = [];
 
-var white_key_outline_colors = [];
-var white_key_outline_indices = [];
+// var white_key_outline_colors = [];
+// var white_key_outline_indices = [];
 
-var black_key_vertices = [];
-var black_key_colors = [];
-var black_key_indices = [];
+// var black_key_vertices = [];
+// var black_key_colors = [];
+// var black_key_indices = [];
 
-var black_key_outline_colors = [];
-var black_key_outline_indices = [];
+// var black_key_outline_colors = [];
+// var black_key_outline_indices = [];
 
-for (var key = 0; key < white_key_count; key++)
-{
-    const start_x = (-1.0 + (key * white_key_width));
-    const start_y = -1.0;
-    const end_x = (-1.0 + ((key + 1) * white_key_width));
-    const end_y = (-1.0 + white_key_height);
-    const index_start = (white_key_vertices.length / 2);
+// for (var key = 0; key < white_key_count; key++)
+// {
+//     const start_x = (-1.0 + (key * white_key_width));
+//     const start_y = -1.0;
+//     const end_x = (-1.0 + ((key + 1) * white_key_width));
+//     const end_y = (-1.0 + white_key_height);
+//     const index_start = (white_key_vertices.length / 2);
 
-    white_key_vertices.push(start_x, start_y, start_x, end_y, end_x, end_y, end_x, start_y);
-    white_key_colors.push(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
-    white_key_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 0), (index_start + 2), (index_start + 3));
+//     white_key_vertices.push(start_x, start_y, start_x, end_y, end_x, end_y, end_x, start_y);
+//     white_key_colors.push(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
+//     white_key_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 0), (index_start + 2), (index_start + 3));
 
-    white_key_outline_colors.push(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-    white_key_outline_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 3));
-}
+//     white_key_outline_colors.push(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+//     white_key_outline_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 3));
+// }
 
-const black_key_offsets = [0.6, 1.2, 0.5, 0.5, 1.2];
-const black_key_width = (white_key_width * white_to_black_width_ratio);
-const black_key_height = (white_key_height * white_to_black_height_ratio);
+// const black_key_offsets = [0.6, 1.2, 0.5, 0.5, 1.2];
+// const black_key_width = (white_key_width * white_to_black_width_ratio);
+// const black_key_height = (white_key_height * white_to_black_height_ratio);
 
-var black_key_start_offset = (black_key_width / 2 + 0.5 * white_key_width);
-var black_key_offset = black_key_start_offset;
+// var black_key_start_offset = (black_key_width / 2 + 0.5 * white_key_width);
+// var black_key_offset = black_key_start_offset;
 
-for (var key = 0; key < 36; key++) {
-    const start_x = (-1.0 + black_key_offset);
-    const start_y = (-1.0 + white_key_height - black_key_height);
-    const end_x = (-1.0 + black_key_offset + black_key_width);
-    const end_y = (-1.0 + white_key_height);
-    const index_start = (black_key_vertices.length / 2);
+// for (var key = 0; key < 36; key++) {
+//     const start_x = (-1.0 + black_key_offset);
+//     const start_y = (-1.0 + white_key_height - black_key_height);
+//     const end_x = (-1.0 + black_key_offset + black_key_width);
+//     const end_y = (-1.0 + white_key_height);
+//     const index_start = (black_key_vertices.length / 2);
 
-    black_key_vertices.push(start_x, start_y, start_x, end_y, end_x, end_y, end_x, start_y);
-    black_key_colors.push(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-    black_key_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 0), (index_start + 2), (index_start + 3));
+//     black_key_vertices.push(start_x, start_y, start_x, end_y, end_x, end_y, end_x, start_y);
+//     black_key_colors.push(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+//     black_key_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 0), (index_start + 2), (index_start + 3));
     
-    black_key_outline_colors.push(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-    black_key_outline_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 3));
+//     black_key_outline_colors.push(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+//     black_key_outline_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 3));
     
-    black_key_offset += ((black_key_offsets[(key + 4) % 5] * white_key_width) + black_key_width);
-}
+//     black_key_offset += ((black_key_offsets[(key + 4) % 5] * white_key_width) + black_key_width);
+// }
 
-var white_key_vb = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, white_key_vb);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(white_key_vertices), gl.STATIC_DRAW);
-gl.bindBuffer(gl.ARRAY_BUFFER, null);
+// var white_key_vb = gl.createBuffer();
+// gl.bindBuffer(gl.ARRAY_BUFFER, white_key_vb);
+// gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(white_key_vertices), gl.STATIC_DRAW);
+// gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-var white_key_cb = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, white_key_cb);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(white_key_colors), gl.DYNAMIC_DRAW);
-gl.bindBuffer(gl.ARRAY_BUFFER, null);
+// var white_key_cb = gl.createBuffer();
+// gl.bindBuffer(gl.ARRAY_BUFFER, white_key_cb);
+// gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(white_key_colors), gl.DYNAMIC_DRAW);
+// gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-var white_key_ib = gl.createBuffer();
-gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, white_key_ib);
-gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(white_key_indices), gl.STATIC_DRAW);
-gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+// var white_key_ib = gl.createBuffer();
+// gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, white_key_ib);
+// gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(white_key_indices), gl.STATIC_DRAW);
+// gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
-var white_key_outline_cb = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, white_key_outline_cb);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(white_key_outline_colors), gl.STATIC_DRAW);
-gl.bindBuffer(gl.ARRAY_BUFFER, null);
+// var white_key_outline_cb = gl.createBuffer();
+// gl.bindBuffer(gl.ARRAY_BUFFER, white_key_outline_cb);
+// gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(white_key_outline_colors), gl.STATIC_DRAW);
+// gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-var white_key_outline_ib = gl.createBuffer();
-gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, white_key_outline_ib);
-gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(white_key_outline_indices), gl.STATIC_DRAW);
-gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+// var white_key_outline_ib = gl.createBuffer();
+// gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, white_key_outline_ib);
+// gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(white_key_outline_indices), gl.STATIC_DRAW);
+// gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
-var black_key_vb = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, black_key_vb);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(black_key_vertices), gl.STATIC_DRAW);
-gl.bindBuffer(gl.ARRAY_BUFFER, null);
+// var black_key_vb = gl.createBuffer();
+// gl.bindBuffer(gl.ARRAY_BUFFER, black_key_vb);
+// gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(black_key_vertices), gl.STATIC_DRAW);
+// gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-var black_key_cb = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, black_key_cb);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(black_key_colors), gl.DYNAMIC_DRAW);
-gl.bindBuffer(gl.ARRAY_BUFFER, null);
+// var black_key_cb = gl.createBuffer();
+// gl.bindBuffer(gl.ARRAY_BUFFER, black_key_cb);
+// gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(black_key_colors), gl.DYNAMIC_DRAW);
+// gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-var black_key_ib = gl.createBuffer();
-gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_ib);
-gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(black_key_indices), gl.STATIC_DRAW);
-gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+// var black_key_ib = gl.createBuffer();
+// gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_ib);
+// gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(black_key_indices), gl.STATIC_DRAW);
+// gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
-var black_key_outline_cb = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, black_key_outline_cb);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(black_key_outline_colors), gl.STATIC_DRAW);
-gl.bindBuffer(gl.ARRAY_BUFFER, null);
+// var black_key_outline_cb = gl.createBuffer();
+// gl.bindBuffer(gl.ARRAY_BUFFER, black_key_outline_cb);
+// gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(black_key_outline_colors), gl.STATIC_DRAW);
+// gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-var black_key_outline_ib = gl.createBuffer();
-gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_outline_ib);
-gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(black_key_outline_indices), gl.STATIC_DRAW);
-gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+// var black_key_outline_ib = gl.createBuffer();
+// gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_outline_ib);
+// gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(black_key_outline_indices), gl.STATIC_DRAW);
+// gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
-var vs_src =
-   //'uniform mat4 rotation;' +
-   'attribute vec2 position;' +
-   'attribute vec3 color;' +
-   'varying vec3 vColor;' +
-   'void main(void) {' +
-      'gl_Position = vec4(position, 0.0, 1.0);' +
-      'vColor = color;' +
-   '}';
+// var vs_src =
+//    'attribute vec2 position;' +
+//    'attribute vec3 color;' +
+//    'varying vec3 vColor;' +
+//    'void main(void) {' +
+//       'gl_Position = vec4(position, 0.0, 1.0);' +
+//       'vColor = color;' +
+//    '}';
    
-var vs = gl.createShader(gl.VERTEX_SHADER);
-gl.shaderSource(vs, vs_src);
-gl.compileShader(vs);
+// var vs = gl.createShader(gl.VERTEX_SHADER);
+// gl.shaderSource(vs, vs_src);
+// gl.compileShader(vs);
 
-var fs_src =
-   'precision lowp float;' +
-   'varying vec3 vColor;' +
-   'void main(void) {' +
-      ' gl_FragColor = vec4(vColor, 1);' +
-   '}';
+// var fs_src =
+//    'precision lowp float;' +
+//    'varying vec3 vColor;' +
+//    'void main(void) {' +
+//       ' gl_FragColor = vec4(vColor, 1);' +
+//    '}';
 
-var fs = gl.createShader(gl.FRAGMENT_SHADER);
-gl.shaderSource(fs, fs_src);
-gl.compileShader(fs);
+// var fs = gl.createShader(gl.FRAGMENT_SHADER);
+// gl.shaderSource(fs, fs_src);
+// gl.compileShader(fs);
 
-var program = gl.createProgram();
-gl.attachShader(program, vs);
-gl.attachShader(program, fs);
-gl.linkProgram(program);
-gl.useProgram(program);
+// var program = gl.createProgram();
+// gl.attachShader(program, vs);
+// gl.attachShader(program, fs);
+// gl.linkProgram(program);
+// gl.useProgram(program);
 
-var position = gl.getAttribLocation(program, "position");
-var color = gl.getAttribLocation(program, "color");
+// var position = gl.getAttribLocation(program, "position");
+// var color = gl.getAttribLocation(program, "color");
 
-const KeyStates = {
-    NONE : 0,
-    PRESSED : 1,
-    SONG : 2
-}
+// const KeyStates = {
+//     NONE : 0,
+//     PRESSED : 1,
+//     SONG : 2
+// }
 
-var keyStates = [];
+// var keyStates = [];
 
-for (var key = 0; key < (white_key_count + black_key_count); key++) {
-    keyStates.push(KeyStates.NONE);
-}
+// for (var key = 0; key < (white_key_count + black_key_count); key++) {
+//     keyStates.push(KeyStates.NONE);
+// }
 
-const gradient = [
-    0.2, 1.0, 1.0, 0.2
-]
+// const gradient = [
+//     0.2, 1.0, 1.0, 0.2
+// ]
 
-const white_keys = [
-    0,2,3,5,7,8,10,12,14,15,17,19,20,22,24,26,27,29,31,32,34,36,38,39,41,43,44,46,48,50,51,53,55,56,58,60,62,63,65,67,68,70,72,74,75,77,79,80,82,84,86,87
-]
-const black_keys = [
-    1,4,6,9,11,13,16,18,21,23,25,28,30,33,35,37,40,42,45,47,49,52,54,57,59,61,64,66,69,71,73,76,78,81,83,85
-]
+// const white_keys = [
+//     0,2,3,5,7,8,10,12,14,15,17,19,20,22,24,26,27,29,31,32,34,36,38,39,41,43,44,46,48,50,51,53,55,56,58,60,62,63,65,67,68,70,72,74,75,77,79,80,82,84,86,87
+// ]
+// const black_keys = [
+//     1,4,6,9,11,13,16,18,21,23,25,28,30,33,35,37,40,42,45,47,49,52,54,57,59,61,64,66,69,71,73,76,78,81,83,85
+// ]
 
-function updateColors() {
-    for (var key = 0; key < white_key_count; key++) {
-        var state = keyStates[white_keys[key]];
-        var primaryColor = [];
+// function updateColors() {
+//     for (var key = 0; key < white_key_count; key++) {
+//         var state = keyStates[white_keys[key]];
+//         var primaryColor = [];
 
-        switch (state) {
-            case KeyStates.NONE: {
-                primaryColor.push(1, 1, 1);
-                break;
-            }
+//         switch (state) {
+//             case KeyStates.NONE: {
+//                 primaryColor.push(1, 1, 1);
+//                 break;
+//             }
 
-            case KeyStates.PRESSED: {
-                primaryColor.push(1.0, 0.0, 0);
-                break;
-            }
+//             case KeyStates.PRESSED: {
+//                 primaryColor.push(1.0, 0.0, 0);
+//                 break;
+//             }
 
-            case KeyStates.SONG: {
-                primaryColor.push(0, 0.75, 0);
-                break;
-            }
-        }
+//             case KeyStates.SONG: {
+//                 primaryColor.push(0, 0.75, 0);
+//                 break;
+//             }
+//         }
 
-        for (var i = 0; i < 4; i++) {
-            for (var j = 0; j < 3; j++) {
-                white_key_colors[(key * 4 * 3) + (i * 3) + j] = (primaryColor[j] * gradient[i]);
-            }
-        }
-    }
+//         for (var i = 0; i < 4; i++) {
+//             for (var j = 0; j < 3; j++) {
+//                 white_key_colors[(key * 4 * 3) + (i * 3) + j] = (primaryColor[j] * gradient[i]);
+//             }
+//         }
+//     }
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, white_key_cb);    
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(white_key_colors), gl.DYNAMIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+//     gl.bindBuffer(gl.ARRAY_BUFFER, white_key_cb);    
+//     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(white_key_colors), gl.DYNAMIC_DRAW);
+//     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
-    for (var key = 0; key < black_key_count; key++) {
-        var state = keyStates[black_keys[key]];
-        var primaryColor = [];
+//     for (var key = 0; key < black_key_count; key++) {
+//         var state = keyStates[black_keys[key]];
+//         var primaryColor = [];
 
-        switch (state) {
-            case KeyStates.NONE: {
-                primaryColor.push(0, 0, 0);
-                break;
-            }
+//         switch (state) {
+//             case KeyStates.NONE: {
+//                 primaryColor.push(0, 0, 0);
+//                 break;
+//             }
 
-            case KeyStates.PRESSED: {
-                primaryColor.push(1.0, 0, 0);
-                break;
-            }
+//             case KeyStates.PRESSED: {
+//                 primaryColor.push(1.0, 0, 0);
+//                 break;
+//             }
 
-            case KeyStates.SONG: {
-                primaryColor.push(0, 0.75, 0);
-                break;
-            }
-        }
+//             case KeyStates.SONG: {
+//                 primaryColor.push(0, 0.75, 0);
+//                 break;
+//             }
+//         }
 
-        for (var i = 0; i < 4; i++) {
-            for (var j = 0; j < 3; j++) {
-                black_key_colors[(key * 4 * 3) + (i * 3) + j] = (primaryColor[j] * gradient[i]);
-            }
-        }
-    }    
+//         for (var i = 0; i < 4; i++) {
+//             for (var j = 0; j < 3; j++) {
+//                 black_key_colors[(key * 4 * 3) + (i * 3) + j] = (primaryColor[j] * gradient[i]);
+//             }
+//         }
+//     }    
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, black_key_cb);    
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(black_key_colors), gl.DYNAMIC_DRAW);
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);
-}
+//     gl.bindBuffer(gl.ARRAY_BUFFER, black_key_cb);    
+//     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(black_key_colors), gl.DYNAMIC_DRAW);
+//     gl.bindBuffer(gl.ARRAY_BUFFER, null);
+// }
 
 function resize(gl) {
     var devicePixelRatio = window.devicePixelRatio;
@@ -311,44 +310,44 @@ requestAnimationFrame(drawScene);
 
 function drawScene(time) {
     resize(gl);
-    updateColors();
+    // updateColors();
 
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, white_key_vb);
-    gl.vertexAttribPointer(position, 2, gl.FLOAT, true, 0, 0);
-    gl.enableVertexAttribArray(position);
-    gl.bindBuffer(gl.ARRAY_BUFFER, white_key_cb);
-    gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(color);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, white_key_ib);
-    gl.drawElements(gl.TRIANGLES, white_key_indices.length, gl.UNSIGNED_SHORT, 0);
+    // gl.bindBuffer(gl.ARRAY_BUFFER, white_key_vb);
+    // gl.vertexAttribPointer(position, 2, gl.FLOAT, true, 0, 0);
+    // gl.enableVertexAttribArray(position);
+    // gl.bindBuffer(gl.ARRAY_BUFFER, white_key_cb);
+    // gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
+    // gl.enableVertexAttribArray(color);
+    // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, white_key_ib);
+    // gl.drawElements(gl.TRIANGLES, white_key_indices.length, gl.UNSIGNED_SHORT, 0);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, white_key_outline_cb);
-    gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(color);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, white_key_outline_ib);
-    gl.drawElements(gl.LINES, white_key_outline_indices.length, gl.UNSIGNED_SHORT, 0);
+    // gl.bindBuffer(gl.ARRAY_BUFFER, white_key_outline_cb);
+    // gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
+    // gl.enableVertexAttribArray(color);
+    // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, white_key_outline_ib);
+    // gl.drawElements(gl.LINES, white_key_outline_indices.length, gl.UNSIGNED_SHORT, 0);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, black_key_vb);
-    gl.vertexAttribPointer(position, 2, gl.FLOAT, true, 0, 0);
-    gl.enableVertexAttribArray(position);
-    gl.bindBuffer(gl.ARRAY_BUFFER, black_key_cb);
-    gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(color);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_ib);
-    gl.drawElements(gl.TRIANGLES, black_key_indices.length, gl.UNSIGNED_SHORT, 0);
+    // gl.bindBuffer(gl.ARRAY_BUFFER, black_key_vb);
+    // gl.vertexAttribPointer(position, 2, gl.FLOAT, true, 0, 0);
+    // gl.enableVertexAttribArray(position);
+    // gl.bindBuffer(gl.ARRAY_BUFFER, black_key_cb);
+    // gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
+    // gl.enableVertexAttribArray(color);
+    // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_ib);
+    // gl.drawElements(gl.TRIANGLES, black_key_indices.length, gl.UNSIGNED_SHORT, 0);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, black_key_outline_cb);
-    gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(color);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_outline_ib);
-    gl.drawElements(gl.LINES, black_key_outline_indices.length, gl.UNSIGNED_SHORT, 0);
+    // gl.bindBuffer(gl.ARRAY_BUFFER, black_key_outline_cb);
+    // gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
+    // gl.enableVertexAttribArray(color);
+    // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_outline_ib);
+    // gl.drawElements(gl.LINES, black_key_outline_indices.length, gl.UNSIGNED_SHORT, 0);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, null);  
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+    // gl.bindBuffer(gl.ARRAY_BUFFER, null);  
+    // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
     
     requestAnimationFrame(drawScene);
 }
