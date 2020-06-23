@@ -5,21 +5,44 @@
         <script async src="./index.js"></script>
         <script async src="./lib/midi-parser.js"></script>
         <style>
+            input {
+                position:absolute;
+                top: -1000px;
+            }
             body {
                 margin: 0;
                 background-color: white;
             }
             canvas{
-                background-color: white;                
-            }.debug {
+                background-color: white;
+            }
+            .info {
                 position: absolute;
                 top: 20px;
                 left: 20px;
                 z-index: 3;
                 color: white;
-                background-color: rgba(0, 0, 128, 0.5);
+                box-shadow: 0 0 0 1pt white;
                 border-radius: 10px;
                 padding: 10px;
+            }
+            .ui {
+                position: absolute;
+                top: 20px;
+                left: 50%;
+                transform: translate(-50%, 0%);
+                z-index: 3;
+                color: white;
+                background-color: rgba(0, 0, 0, 1.0);
+            }
+            img {
+                background-color: black;
+            }
+            .buttons {
+                width: 5vw;
+                height: 5vw;
+                margin-left: 2.5vw;
+                margin-right: 2.5vw;
             }
             #canvas {
                 display: block;
@@ -32,7 +55,25 @@
         </style>
     </head>
     <body">
-        <div class="debug">
+        <div class="ui">
+            <label>
+                <img src="./img/music.svg" class="buttons"/>
+                <input id="file" type="file" accept=".mid">
+            </label>
+            <label>
+                <img src="./img/play.svg" class="buttons"/>
+                <input id="play" type="button" onclick="onPlay()"/>
+            </label>
+            <label>
+                <img src="./img/pause.svg" class="buttons"/>
+                <input id="pause" type="button" onclick="onPause()"/>
+            </label>
+            <label>
+                <img src="./img/stop.svg" class="buttons"/>
+                <input id="stop" type="button" onclick="onStop()"/>
+            </label>
+        </div>
+        <div class="info">
             <div id="inputs">Inputs:</div>
             <div id="outputs">Outputs:</div>       
             <div>

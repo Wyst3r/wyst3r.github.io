@@ -13,6 +13,8 @@ if (navigator.requestMIDIAccess) {
     alert("No WebMIDI support in your browser.");
 }
 
+document.getElementById("file").addEventListener("change", onFileChanged, false);
+
 const white_key_count = 52;
 const black_key_count = 36;
 
@@ -524,6 +526,30 @@ function checkKeyReleased(id) {
         keyStates[idToKeyMap.get(id)] = KeyStates.NONE;
         idToKeyMap.delete(id);
     }
+}
+
+function onPlay() {
+
+}
+
+function onPause() {
+
+}
+
+function onStop() {
+
+}
+
+function onFileChanged() {
+    var file = this.files[0]; /* now you can work with the file list */
+    var reader = new FileReader();
+    reader.onloadend = onFileLoaded;
+    reader.readAsArrayBuffer(file);
+}
+
+function onFileLoaded(event) {
+    var data = new Uint8Array(event.target.result);
+    var midi = parseMidi(data);
 }
 
 
