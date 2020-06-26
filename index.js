@@ -19,7 +19,7 @@ const white_key_count = 52;
 const black_key_count = 36;
 
 const white_key_width = ((1.0 - (-1.0)) / white_key_count);
-const white_key_height = 0.2; // Make it depend on aspect ratio?
+const white_key_height = 0.2;
 const white_to_black_width_ratio = 0.6;
 const white_to_black_height_ratio = 0.65;
 
@@ -37,6 +37,16 @@ var black_key_indices = [];
 var black_key_outline_colors = [];
 var black_key_outline_indices = [];
 
+const white_keys = [
+    0,2,3,5,7,8,10,12,14,15,17,19,20,22,24,26,27,29,31,32,34,36,38,39,41,43,44,46,48,50,51,53,55,56,58,60,62,63,65,67,68,70,72,74,75,77,79,80,82,84,86,87
+]
+const black_keys = [
+    1,4,6,9,11,13,16,18,21,23,25,28,30,33,35,37,40,42,45,47,49,52,54,57,59,61,64,66,69,71,73,76,78,81,83,85
+]
+
+key_start_x = new Array(88);
+key_end_x = new Array(88);
+
 for (var key = 0; key < white_key_count; key++)
 {
     const start_x = (-1.0 + (key * white_key_width));
@@ -51,6 +61,9 @@ for (var key = 0; key < white_key_count; key++)
 
     white_key_outline_colors.push(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
     white_key_outline_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 3));
+
+    key_start_x[white_keys[key]] = start_x;
+    key_end_x[white_keys[key]] = end_x;
 }
 
 const black_key_offsets = [0.6, 1.2, 0.5, 0.5, 1.2];
@@ -75,6 +88,9 @@ for (var key = 0; key < 36; key++) {
     black_key_outline_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 3));
     
     black_key_offset += ((black_key_offsets[(key + 4) % 5] * white_key_width) + black_key_width);
+    
+    key_start_x[black_keys[key]] = start_x;
+    key_end_x[black_keys[key]] = end_x;
 }
 
 var white_key_vb = gl.createBuffer();
@@ -127,29 +143,43 @@ gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_outline_ib);
 gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(black_key_outline_indices), gl.STATIC_DRAW);
 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
+var notes_vb = gl.createBuffer();
+var notes_cb = gl.createBuffer();
+var notes_ib = gl.createBuffer();
+
 var vs_src =
    'attribute vec2 position;' +
    'attribute vec3 color;' +
    'varying vec3 vColor;' +
    'void main(void) {' +
-      'gl_Position = vec4(position, 0.0, 1.0);' +
-      'vColor = color;' +
+        'gl_Position = vec4(position, 0.0, 1.0);' +
+        'vColor = color;' +
    '}';
    
 var vs = gl.createShader(gl.VERTEX_SHADER);
 gl.shaderSource(vs, vs_src);
 gl.compileShader(vs);
+var vs_info = gl.getShaderInfoLog(vs);
+
+if (vs_info.length > 0) {
+    alert('Failed to compile vertex shader:\n' + vs_info);
+}
 
 var fs_src =
    'precision lowp float;' +
    'varying vec3 vColor;' +
    'void main(void) {' +
-      ' gl_FragColor = vec4(vColor, 1);' +
+        'gl_FragColor = vec4(vColor, 1);' +
    '}';
 
 var fs = gl.createShader(gl.FRAGMENT_SHADER);
 gl.shaderSource(fs, fs_src);
 gl.compileShader(fs);
+var fs_info = gl.getShaderInfoLog(fs);
+
+if (fs_info.length > 0) {
+    alert('Failed to compile fragment shader:\n' + fs_info);
+}
 
 var program = gl.createProgram();
 gl.attachShader(program, vs);
@@ -176,14 +206,7 @@ const gradient = [
     0.2, 1.0, 1.0, 0.2
 ]
 
-const white_keys = [
-    0,2,3,5,7,8,10,12,14,15,17,19,20,22,24,26,27,29,31,32,34,36,38,39,41,43,44,46,48,50,51,53,55,56,58,60,62,63,65,67,68,70,72,74,75,77,79,80,82,84,86,87
-]
-const black_keys = [
-    1,4,6,9,11,13,16,18,21,23,25,28,30,33,35,37,40,42,45,47,49,52,54,57,59,61,64,66,69,71,73,76,78,81,83,85
-]
-
-function updateColors() {
+function updateKeys() {
     for (var key = 0; key < white_key_count; key++) {
         var state = keyStates[white_keys[key]];
         var primaryColor = [];
@@ -308,13 +331,29 @@ function updateInfo() {
 
 requestAnimationFrame(drawScene);
 
-function drawScene(time) {
+var previousTime = 0.0;
+
+function drawScene(currentTime) {
+    if (isPlaying) {
+        time += (currentTime - previousTime);
+    }
+
     resize(gl);
-    updateColors();
+    updateNotes();
+    updateKeys();
 
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
+    
+    gl.bindBuffer(gl.ARRAY_BUFFER, notes_vb);
+    gl.vertexAttribPointer(position, 2, gl.FLOAT, true, 0, 0);
+    gl.enableVertexAttribArray(position);
+    gl.bindBuffer(gl.ARRAY_BUFFER, notes_cb);
+    gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(color);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, notes_ib);
+    gl.drawElements(gl.TRIANGLES, notes_indices.length, gl.UNSIGNED_SHORT, 0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, white_key_vb);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, true, 0, 0);
@@ -349,6 +388,8 @@ function drawScene(time) {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);  
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
     
+    previousTime = currentTime;
+
     requestAnimationFrame(drawScene);
 }
 
@@ -394,7 +435,7 @@ function onMIDIMessage(message) {
     }
 }
 
-var tempo = 0;
+var tempo = 60; // TODO: Set to 0
 var prev_measure_start = null;
 
 function onNoteOn(note, time) {
@@ -528,20 +569,24 @@ function checkKeyReleased(id) {
     }
 }
 
-function onPlay() {
+var isPlaying = false;
 
+function onPlay() {
+    isPlaying = true;
 }
 
 function onPause() {
-
+    isPlaying = false;
 }
 
 function onStop() {
-
+    isPlaying = false;
+    time = 0.0;
 }
 
 function onFileChanged() {
-    var file = this.files[0]; /* now you can work with the file list */
+    var file = this.files[0];
+    document.getElementById('song').innerText = file.name.split('.')[0];
     var reader = new FileReader();
     reader.onloadend = onFileLoaded;
     reader.readAsArrayBuffer(file);
@@ -550,6 +595,223 @@ function onFileChanged() {
 function onFileLoaded(event) {
     var data = new Uint8Array(event.target.result);
     var midi = parseMidi(data);
+    
+    loadMidi(midi);
+}
+
+var notes_vertices = [];
+var notes_colors = [];
+var notes_indices = [];
+
+var ticks_per_beat = 0;
+
+function notesLeft(midi, indices) {
+    for (var i = 0; i < midi.tracks.length; i++) {
+        if (indices[i] < midi.tracks[i].length) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function loadMidi(midi) {
+    ticks_per_beat = midi.header.ticksPerBeat;
+    var times = new Array(midi.tracks.length);
+    times.fill(0);
+    var indices = new Array(midi.tracks.length);
+    indices.fill(0);
+    var notes = new Array(midi.tracks.length);
+    for (var i = 0; i < notes.length; i++) {
+        notes[i] = new Map();
+    }
+
+    while (notesLeft(midi, indices)) {
+        var nextIndex = 0;
+        var nextTime = Number.MAX_SAFE_INTEGER;
+        var nextEvent = null;
+        for (var i = 0; i < midi.tracks.length; i++) 
+        {
+            var index = indices[i];
+            var track = midi.tracks[i];
+            if (index >= track.length) {
+                continue;
+            }
+            var event = track[index];
+            var eventTime = (times[i] + event.deltaTime);
+            if (eventTime < nextTime) {
+                nextTime = eventTime;
+                nextIndex = i;
+                nextEvent = event;
+            }
+        }
+
+        times[nextIndex] = nextTime;
+        indices[nextIndex]++;
+
+        if (nextEvent.meta) {
+            continue;
+        }
+        switch (nextEvent.type) {
+            case 'noteOn': {
+                var note = (nextEvent.noteNumber - 21);
+                if (nextEvent.velocity == 0) {
+                    if (notes[nextIndex].has(note)) {
+                        notes_sorted[notes[nextIndex].get(note)].end = nextTime;
+                        notes[nextIndex].delete(note);
+                    }
+                } else {
+                    notes[nextIndex].set(note, notes_sorted.length);
+                    addNote(note, nextTime);
+                }
+
+                break;
+            }
+
+            case 'noteOff': {
+                var note = (nextEvent.noteNumber - 21);
+                if (notes[nextIndex].has(note)) {
+                    notes_sorted[notes[nextIndex].get(note)].end = nextTime;
+                    notes[nextIndex].delete(note);
+                }
+                break;
+            }
+        }
+    }
+}
+
+var notes_sorted = [];
+
+function addNote(key, start) {
+    notes_sorted.push({'key': key, 'start': start, 'end': null});
+}
+
+var zoom = 4.0; // in measures
+var time = 0.0; // in milliseconds
+
+function ticksToMilliseconds(ticks) {
+    return ((60000.0 / (tempo * ticks_per_beat)) * ticks);
+} 
+
+function millisecondsToTicks(milliseconds) {
+    return (milliseconds / (60000.0 / (tempo * ticks_per_beat)));
+}
+
+// can we cache note start index somehow to avoid searching whole list? like first note that actually is shown
+function updateNotes() {
+    notes_vertices = [];
+    notes_colors = [];
+    notes_indices = [];
+
+    var start_tick = millisecondsToTicks(time);
+    var end_tick = (start_tick + (4 * ticks_per_beat * zoom) - 1);
+
+    keyStates.fill(KeyStates.NONE);
+
+    for (var i = 0; i < notes_sorted.length; i++) {
+        var note = notes_sorted[i];
+        if (note.start > end_tick) {
+            break;
+        }
+        if (note.end < start_tick) {
+            continue;
+        }
+
+        if ((note.start <= start_tick) && 
+            (note.end >= start_tick)) {
+                keyStates[note.key] = KeyStates.SONG;
+        }
+
+        var start_time = (note.start - start_tick);
+        var end_time = (note.end - start_tick);
+
+        var total_height = (2.0 - white_key_height);
+        var total_duration = (end_tick - start_tick);
+        var units_per_tick = (total_height / total_duration);
+
+        var start_x = key_start_x[note.key];
+        var start_y = (-1.0 + white_key_height + (units_per_tick * start_time));
+        var end_x = key_end_x[note.key];
+        var end_y = (-1.0 + white_key_height + (units_per_tick * end_time));
+
+        createRoundedRectangle(notes_vertices, notes_colors, notes_indices, start_x, start_y, end_x, end_y);
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, notes_vb);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(notes_vertices), gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    gl.bindBuffer(gl.ARRAY_BUFFER, notes_cb);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(notes_colors), gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, notes_ib);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(notes_indices), gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+}
+
+
+function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end_x, end_y) {
+    var length_x = (end_x - start_x);
+    var length_y = (end_y - start_y);
+    var radius = (Math.min(length_x, length_y) / 2);
+    var divisions = 15;
+    var vertices_per_corner = (divisions + 2);
+    var index_start = (vertices.length / 2);
+
+    center_start_x = (start_x + radius);
+    center_start_y = (start_y + radius);
+    center_end_x = (end_x - radius);
+    center_end_y = (end_y - radius);
+
+    var centers_x = [
+        center_end_x,
+        center_start_x,
+        center_start_x,
+        center_end_x
+    ];
+
+    var centers_y = [
+        center_end_y,
+        center_end_y,
+        center_start_y,
+        center_start_y
+    ];
+
+    var angle = 0.0;
+    for (var i = 0; i < 4; i++) {
+        var corner_start = (vertices.length / 2);
+        var center_x = centers_x[i];
+        var center_y = centers_y[i];
+        vertices.push(center_x, center_y);
+        colors.push(1.0, 0.0, 0.0);
+        for (var j = 0; j < divisions; j++) {
+            var x = (center_x + (Math.cos(angle) * radius));
+            var y = (center_y + (Math.sin(angle) * radius));
+            vertices.push(x, y);
+            colors.push(1.0, 0.0, 0.0);
+            indices.push((corner_start + 0), (corner_start + j + 1), (corner_start + j + 2));
+            angle += (Math.PI / 2 / divisions);
+        }
+        var x = (center_x + (Math.cos(angle) * radius));
+        var y = (center_y + (Math.sin(angle) * radius));
+        vertices.push(x, y);
+        colors.push(1.0, 0.0, 0.0);
+    }
+
+    for (var i = 0; i < 4; i++) {
+        var index_0 = (index_start + (((i + 0) % 4) * vertices_per_corner) + 0);
+        var index_1 = (index_start + ((i + 1) * vertices_per_corner) - 1);
+        var index_2 = (index_start + (((i + 1) % 4) * vertices_per_corner) + 1);
+        var index_3 = (index_start + (((i + 1) % 4) * vertices_per_corner) + 0);
+
+        indices.push(index_0, index_1, index_2, index_0, index_2, index_3);
+    }
+
+    // var index_0 = (index_start + (0 * vertices_per_corner));
+    // var index_1 = (index_start + (1 * vertices_per_corner));
+    // var index_2 = (index_start + (2 * vertices_per_corner));
+    // var index_3 = (index_start + (3 * vertices_per_corner));
+
+    // notes_indices.push(index_0, index_1, index_2, index_0, index_2, index_3);
 }
 
 

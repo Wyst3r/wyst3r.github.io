@@ -33,7 +33,7 @@
                 transform: translate(-50%, 0%);
                 z-index: 3;
                 color: white;
-                background-color: rgba(0, 0, 0, 1.0);
+                background-color: rgba(0, 0, 0, 0.0);
             }
             img {
                 background-color: black;
@@ -50,6 +50,9 @@
                 height: 100vh;
             }
             #tempo {
+                color: gray;
+            }
+            #song {
                 color: gray;
             }
         </style>
@@ -75,11 +78,16 @@
         </div>
         <div class="info">
             <div id="inputs">Inputs:</div>
-            <div id="outputs">Outputs:</div>       
+            <div id="outputs">Outputs:</div>
+            <div>
+                <div>Song:</div>
+                <div id="song">None</div>
+            </div> 
             <div>
                 <div>Tempo:</div>
                 <div id="tempo">0</div>
             </div>
+            
         </div>
         <div>
             <canvas id="canvas"></canvas>
