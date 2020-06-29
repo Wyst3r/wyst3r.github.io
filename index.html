@@ -5,7 +5,7 @@
         <script async src="./index.js"></script>
         <script async src="./lib/midi-parser.js"></script>
         <style>
-            input {
+            .hidden {
                 position:absolute;
                 top: -1000px;
             }
@@ -21,6 +21,7 @@
                 top: 20px;
                 left: 20px;
                 z-index: 3;
+                background-color: black;
                 color: white;
                 box-shadow: 0 0 0 1pt white;
                 border-radius: 10px;
@@ -61,19 +62,19 @@
         <div class="ui">
             <label>
                 <img src="./img/music.svg" class="buttons"/>
-                <input id="file" type="file" accept=".mid">
+                <input id="file" type="file" class="hidden" accept=".mid">
             </label>
             <label>
                 <img src="./img/play.svg" class="buttons"/>
-                <input id="play" type="button" onclick="onPlay()"/>
+                <input id="play" type="button" class="hidden" onclick="onPlay()"/>
             </label>
             <label>
                 <img src="./img/pause.svg" class="buttons"/>
-                <input id="pause" type="button" onclick="onPause()"/>
+                <input id="pause" type="button" class="hidden" onclick="onPause()"/>
             </label>
             <label>
                 <img src="./img/stop.svg" class="buttons"/>
-                <input id="stop" type="button" onclick="onStop()"/>
+                <input id="stop" type="button" class="hidden" onclick="onStop()"/>
             </label>
         </div>
         <div class="info">
@@ -87,7 +88,10 @@
                 <div>Tempo:</div>
                 <div id="tempo">0</div>
             </div>
-            
+            <div>
+                <div>Color:</div>
+                <input type="color" id="notes-color" value="#7FAF4B" onchange="onColorChanged(this.value)">
+            </div>
         </div>
         <div>
             <canvas id="canvas"></canvas>

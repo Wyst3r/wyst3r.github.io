@@ -93,6 +93,23 @@ for (var key = 0; key < 36; key++) {
     key_end_x[black_keys[key]] = end_x;
 }
 
+var octave_r = 0.2;
+var octave_g = 0.2;
+var octave_b = 0.2;
+
+var octaves_vertices = [];
+var octaves_colors = [];
+
+for (var i = 0; i < 8; i++) {
+    var start_x = (-1.0 + ((2 + (i * 7)) * white_key_width));
+    var start_y = (-1.0 + white_key_height);
+    var end_x = start_x;
+    var end_y = 1.0;
+
+    octaves_vertices.push(start_x, start_y, end_x, end_y);
+    octaves_colors.push(octave_r, octave_g, octave_b, octave_r, octave_g, octave_b);
+}
+
 var white_key_vb = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, white_key_vb);
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(white_key_vertices), gl.STATIC_DRAW);
@@ -143,11 +160,26 @@ gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_outline_ib);
 gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(black_key_outline_indices), gl.STATIC_DRAW);
 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 
+var octaves_vb = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, octaves_vb);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(octaves_vertices), gl.STATIC_DRAW);
+gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+var octaves_cb = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, octaves_cb);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(octaves_colors), gl.STATIC_DRAW);
+gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+const texture_vb = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1,  1, -1,  1, 1, -1, 1,  1,]), gl.STATIC_DRAW);
+gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
 var notes_vb = gl.createBuffer();
 var notes_cb = gl.createBuffer();
 var notes_ib = gl.createBuffer();
 
-var vs_src =
+var default_vs_src =
    'attribute vec2 position;' +
    'attribute vec3 color;' +
    'varying vec3 vColor;' +
@@ -155,40 +187,17 @@ var vs_src =
         'gl_Position = vec4(position, 0.0, 1.0);' +
         'vColor = color;' +
    '}';
-   
-var vs = gl.createShader(gl.VERTEX_SHADER);
-gl.shaderSource(vs, vs_src);
-gl.compileShader(vs);
-var vs_info = gl.getShaderInfoLog(vs);
 
-if (vs_info.length > 0) {
-    alert('Failed to compile vertex shader:\n' + vs_info);
-}
-
-var fs_src =
+var default_fs_src =
    'precision lowp float;' +
    'varying vec3 vColor;' +
    'void main(void) {' +
         'gl_FragColor = vec4(vColor, 1);' +
    '}';
 
-var fs = gl.createShader(gl.FRAGMENT_SHADER);
-gl.shaderSource(fs, fs_src);
-gl.compileShader(fs);
-var fs_info = gl.getShaderInfoLog(fs);
-
-if (fs_info.length > 0) {
-    alert('Failed to compile fragment shader:\n' + fs_info);
-}
-
-var program = gl.createProgram();
-gl.attachShader(program, vs);
-gl.attachShader(program, fs);
-gl.linkProgram(program);
-gl.useProgram(program);
-
-var position = gl.getAttribLocation(program, "position");
-var color = gl.getAttribLocation(program, "color");
+var default_program = createProgram(default_vs_src, default_fs_src);
+var default_position = gl.getAttribLocation(default_program, "position");
+var default_color = gl.getAttribLocation(default_program, "color");
 
 const KeyStates = {
     NONE : 0,
@@ -218,12 +227,12 @@ function updateKeys() {
             }
 
             case KeyStates.PRESSED: {
-                primaryColor.push(1.0, 0.0, 0);
+                primaryColor.push(notes_r, notes_g, notes_b);
                 break;
             }
 
             case KeyStates.SONG: {
-                primaryColor.push(0, 0.75, 0);
+                primaryColor.push(notes_r, notes_g, notes_b);
                 break;
             }
         }
@@ -250,12 +259,12 @@ function updateKeys() {
             }
 
             case KeyStates.PRESSED: {
-                primaryColor.push(1.0, 0, 0);
+                primaryColor.push(notes_r, notes_g, notes_b);
                 break;
             }
 
             case KeyStates.SONG: {
-                primaryColor.push(0, 0.75, 0);
+                primaryColor.push(notes_r, notes_g, notes_b);
                 break;
             }
         }
@@ -282,6 +291,27 @@ function resize(gl) {
         (gl.canvas.height !== displayHeight)) {
       gl.canvas.width  = displayWidth;
       gl.canvas.height = displayHeight;
+
+      gl.deleteTexture(notes_tex);
+      gl.deleteTexture(final_tex);
+      gl.deleteTexture(read_tex);
+      gl.deleteTexture(write_tex);
+      gl.deleteFramebuffer(notes_fb);
+      gl.deleteFramebuffer(final_fb);
+      gl.deleteFramebuffer(read_fb);
+      gl.deleteFramebuffer(write_fb);
+
+      notes_tex = createTexture(displayWidth, displayHeight);
+      notes_fb = createFramebuffer(notes_tex);
+
+      final_tex = createTexture(displayWidth, displayHeight);
+      final_fb = createFramebuffer(final_tex);
+
+      read_tex = createTexture(displayWidth, displayHeight);
+      read_fb = createFramebuffer(read_tex);
+
+      write_tex = createTexture(displayWidth, displayHeight);
+      write_fb = createFramebuffer(write_tex);
     }
 }
 
@@ -329,6 +359,142 @@ function updateInfo() {
     }
 }
 
+function createTexture(width, height) {
+    var texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return texture;
+}
+
+function createFramebuffer(texture) {
+    var framebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return framebuffer;
+}
+
+var notes_tex = null;
+var final_tex = null;
+var read_tex = null;
+var write_tex = null;
+var read_fb = null;
+var write_fb = null;
+var notes_fb = null;
+var final_fb = null;
+
+function createVertexShader(source) {
+    var shader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    var log = gl.getShaderInfoLog(shader);
+    if (log.length > 0) {
+        alert('Failed to compile vertex shader:\n' + log);
+    }
+    return shader;
+}
+
+function createFragmentShader(source) {
+    var shader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    var log = gl.getShaderInfoLog(shader);
+    if (log.length > 0) {
+        alert('Failed to compile fragment shader:\n' + log);
+    }
+    return shader;
+}
+
+function createProgram(vs_src, fs_src) {
+    var vertex_shader = createVertexShader(vs_src);
+    var fragment_shader = createFragmentShader(fs_src);
+    var program = gl.createProgram();
+    gl.attachShader(program, vertex_shader);
+    gl.attachShader(program, fragment_shader);
+    gl.linkProgram(program);
+    return program;
+}
+
+var texture_vs_src =
+   'attribute vec2 position;' +
+   'varying vec2 vTexcoord;' +
+   'void main(void) {' +
+        'gl_Position = vec4(position, 0.0, 1.0);' +
+        'vTexcoord = ((position * 0.5) + 0.5);' +
+   '}';
+
+var texture_fs_src =
+   'precision lowp float;' +
+   'varying vec2 vTexcoord;' +
+   'uniform sampler2D texture;' +
+   'void main(void) {' +
+        'gl_FragColor = texture2D(texture, vTexcoord);' +
+   '}';
+
+
+var texture_program = createProgram(texture_vs_src, texture_fs_src);
+var texture_position = gl.getAttribLocation(texture_program, "position");
+var texture_texture = gl.getUniformLocation(texture_program, "texture");
+
+var blur_fs_src = 
+    'precision lowp float;' +
+    'precision lowp int;' +
+    'varying vec2 vTexcoord;' +
+    'uniform sampler2D texture;' +
+    'uniform vec2 resolution;' +
+    'uniform vec2 direction;' +
+    'uniform float weights[5];' +
+    'void main(void) {' +
+        'vec2 step = (1.0 / resolution);' +
+        'vec3 color = (texture2D(texture, vTexcoord).rgb * weights[0]);' +
+        'for (int i = 1; i < 5; i++) {' +
+            'color += (texture2D(texture, (vTexcoord + (direction * step * float(i)))).rgb * weights[i]);' +
+            'color += (texture2D(texture, (vTexcoord - (direction * step * float(i)))).rgb * weights[i]);' +
+        '}' +
+        'gl_FragColor = vec4(color, 1.0);' +
+    '}';
+
+var blur_program = createProgram(texture_vs_src, blur_fs_src);
+var blur_position = gl.getAttribLocation(blur_program, "position");
+var blur_texture = gl.getUniformLocation(blur_program, "texture");
+var blur_resolution = gl.getUniformLocation(blur_program, "resolution");
+var blur_direction = gl.getUniformLocation(blur_program, "direction");
+var blur_weights = gl.getUniformLocation(blur_program, "weights");
+
+var mix_fs_src =
+   'precision lowp float;' +
+   'varying vec2 vTexcoord;' +
+   'uniform sampler2D texture0;' +
+   'uniform sampler2D texture1;' +
+   'void main(void) {' +
+        'float gamma = 1.7;' +
+        'float exposure = 1.0;' +
+        'vec3 color1 = texture2D(texture0, vTexcoord).rgb;' +
+        'vec3 color2 = texture2D(texture1, vTexcoord).rgb;' +
+        'vec3 result = (color1 + color2);' +
+        'result = vec3((1.0 - exp(-result.r * exposure)), (1.0 - exp(-result.g * exposure)), (1.0 - exp(-result.b * exposure)));' +
+        'result = vec3(pow(result.r, (1.0 / gamma)), pow(result.g, (1.0 / gamma)), pow(result.b, (1.0 / gamma)));' +
+        'result *= max(1.0 - (0.4 * smoothstep(0.6, 0.8, vTexcoord.y)) - smoothstep(0.8, 0.975, vTexcoord.y), 0.0);' + 
+        'gl_FragColor = vec4(result, 1.0);' +
+   '}';
+
+var mix_program = createProgram(texture_vs_src, mix_fs_src);
+var mix_position = gl.getAttribLocation(mix_program, "position");
+var mix_texture0 = gl.getUniformLocation(mix_program, "texture0");
+var mix_texture1 = gl.getUniformLocation(mix_program, "texture1");
+
+function swapBuffers() {
+    var temp_fb = read_fb;
+    read_fb = write_fb;
+    write_fb = temp_fb;
+    var temp_tex = read_tex;
+    read_tex = write_tex;
+    write_tex = temp_tex;
+}
+
 requestAnimationFrame(drawScene);
 
 var previousTime = 0.0;
@@ -341,47 +507,162 @@ function drawScene(currentTime) {
     resize(gl);
     updateNotes();
     updateKeys();
-
+    
+    gl.bindFramebuffer(gl.FRAMEBUFFER, notes_fb);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    
+
+    gl.useProgram(default_program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, octaves_vb);
+    gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
+    gl.enableVertexAttribArray(default_position);
+    gl.bindBuffer(gl.ARRAY_BUFFER, octaves_cb);
+    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(default_color);
+    gl.drawArrays(gl.LINES, 0, (octaves_vertices.length / 2));
+
+    gl.useProgram(default_program);
     gl.bindBuffer(gl.ARRAY_BUFFER, notes_vb);
-    gl.vertexAttribPointer(position, 2, gl.FLOAT, true, 0, 0);
-    gl.enableVertexAttribArray(position);
+    gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
+    gl.enableVertexAttribArray(default_position);
     gl.bindBuffer(gl.ARRAY_BUFFER, notes_cb);
-    gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(color);
+    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(default_color);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, notes_ib);
     gl.drawElements(gl.TRIANGLES, notes_indices.length, gl.UNSIGNED_SHORT, 0);
 
+    // Glow might not be needed, alot of channels only use particles
+    //for (var i = 0; i < 10; i++) {
+        //swapBuffers();
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.useProgram(blur_program);
+        gl.uniform1i(blur_texture, 0);
+        gl.uniform2f(blur_resolution, gl.canvas.width, gl.canvas.height);
+        gl.uniform2f(blur_direction, 1.0, 0.0);
+        gl.uniform1fv(blur_weights, new Float32Array([0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216]));
+        gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
+        gl.vertexAttribPointer(blur_position, 2, gl.FLOAT, true, 0, 0);
+        gl.enableVertexAttribArray(blur_position);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, notes_tex);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        
+        swapBuffers();
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.useProgram(blur_program);
+        gl.uniform1i(blur_texture, 0);
+        gl.uniform2f(blur_resolution, gl.canvas.width, gl.canvas.height);
+        gl.uniform2f(blur_direction, 0.0, 1.0);
+        gl.uniform1fv(blur_weights, new Float32Array([0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216]));
+        gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
+        gl.vertexAttribPointer(blur_position, 2, gl.FLOAT, true, 0, 0);
+        gl.enableVertexAttribArray(blur_position);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, read_tex);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+    //}
+    for (var i = 0; i < 5; i++) {
+        swapBuffers();
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.useProgram(blur_program);
+        gl.uniform1i(blur_texture, 0);
+        gl.uniform2f(blur_resolution, gl.canvas.width, gl.canvas.height);
+        gl.uniform2f(blur_direction, 1.0, 0.0);
+        gl.uniform1fv(blur_weights, new Float32Array([0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216]));
+        gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
+        gl.vertexAttribPointer(blur_position, 2, gl.FLOAT, true, 0, 0);
+        gl.enableVertexAttribArray(blur_position);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, read_tex);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        
+        swapBuffers();
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.useProgram(blur_program);
+        gl.uniform1i(blur_texture, 0);
+        gl.uniform2f(blur_resolution, gl.canvas.width, gl.canvas.height);
+        gl.uniform2f(blur_direction, 0.0, 1.0);
+        gl.uniform1fv(blur_weights, new Float32Array([0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216]));
+        gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
+        gl.vertexAttribPointer(blur_position, 2, gl.FLOAT, true, 0, 0);
+        gl.enableVertexAttribArray(blur_position);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, read_tex);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
+    swapBuffers();
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, final_fb);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.useProgram(mix_program);
+    gl.uniform1i(mix_texture0, 0);
+    gl.uniform1i(mix_texture1, 1);
+    gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
+    gl.vertexAttribPointer(mix_position, 2, gl.FLOAT, true, 0, 0);
+    gl.enableVertexAttribArray(mix_position);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, notes_tex);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, read_tex);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    swapBuffers();
+    
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.useProgram(texture_program);
+    gl.uniform1i(texture_texture, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
+    gl.vertexAttribPointer(texture_position, 2, gl.FLOAT, true, 0, 0);
+    gl.enableVertexAttribArray(texture_position);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, final_tex);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    gl.useProgram(default_program);
     gl.bindBuffer(gl.ARRAY_BUFFER, white_key_vb);
-    gl.vertexAttribPointer(position, 2, gl.FLOAT, true, 0, 0);
-    gl.enableVertexAttribArray(position);
+    gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
+    gl.enableVertexAttribArray(default_position);
     gl.bindBuffer(gl.ARRAY_BUFFER, white_key_cb);
-    gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(color);
+    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(default_color);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, white_key_ib);
     gl.drawElements(gl.TRIANGLES, white_key_indices.length, gl.UNSIGNED_SHORT, 0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, white_key_outline_cb);
-    gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(color);
+    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(default_color);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, white_key_outline_ib);
     gl.drawElements(gl.LINES, white_key_outline_indices.length, gl.UNSIGNED_SHORT, 0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, black_key_vb);
-    gl.vertexAttribPointer(position, 2, gl.FLOAT, true, 0, 0);
-    gl.enableVertexAttribArray(position);
+    gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
+    gl.enableVertexAttribArray(default_position);
     gl.bindBuffer(gl.ARRAY_BUFFER, black_key_cb);
-    gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(color);
+    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(default_color);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_ib);
     gl.drawElements(gl.TRIANGLES, black_key_indices.length, gl.UNSIGNED_SHORT, 0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, black_key_outline_cb);
-    gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(color);
+    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(default_color);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_outline_ib);
     gl.drawElements(gl.LINES, black_key_outline_indices.length, gl.UNSIGNED_SHORT, 0);
 
@@ -686,7 +967,7 @@ function addNote(key, start) {
     notes_sorted.push({'key': key, 'start': start, 'end': null});
 }
 
-var zoom = 4.0; // in measures
+var zoom = 1.0; // in measures
 var time = 0.0; // in milliseconds
 
 function ticksToMilliseconds(ticks) {
@@ -695,6 +976,22 @@ function ticksToMilliseconds(ticks) {
 
 function millisecondsToTicks(milliseconds) {
     return (milliseconds / (60000.0 / (tempo * ticks_per_beat)));
+}
+
+document.getElementById('notes-color').value
+
+var notes_r = 0.0;
+var notes_g = 0.0;
+var notes_b = 0.0;
+
+onColorChanged(document.getElementById('notes-color').value);
+
+function onColorChanged(color) {
+    var collen=(color.length-1)/3;
+    var fact=[17,1,0.062272][collen-1];
+    notes_r = (Math.round(parseInt(color.substr(1,collen),16)*fact) / 256.0);
+    notes_g = (Math.round(parseInt(color.substr(1+collen,collen),16)*fact) / 256.0);
+    notes_b = (Math.round(parseInt(color.substr(1+2*collen,collen),16)*fact) / 256.0);
 }
 
 // can we cache note start index somehow to avoid searching whole list? like first note that actually is shown
@@ -734,7 +1031,10 @@ function updateNotes() {
         var end_x = key_end_x[note.key];
         var end_y = (-1.0 + white_key_height + (units_per_tick * end_time));
 
-        createRoundedRectangle(notes_vertices, notes_colors, notes_indices, start_x, start_y, end_x, end_y);
+        var radius_x = (white_key_width * 0.28);
+        var radius_y = (radius_x * (gl.canvas.width / gl.canvas.height));
+
+        createRoundedRectangle(notes_vertices, notes_colors, notes_indices, start_x, start_y, end_x, end_y, radius_x, radius_y, notes_r, notes_g, notes_b);//(7 / gl.canvas.width) * 2, (7 / gl.canvas.height) * 2);
     }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, notes_vb);
@@ -749,18 +1049,18 @@ function updateNotes() {
 }
 
 
-function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end_x, end_y) {
+function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end_x, end_y, radius_x, radius_y, color_r, color_g, color_b) {
     var length_x = (end_x - start_x);
     var length_y = (end_y - start_y);
-    var radius = (Math.min(length_x, length_y) / 2);
+    //var radius = (Math.min(length_x, length_y) / 2);
     var divisions = 15;
     var vertices_per_corner = (divisions + 2);
     var index_start = (vertices.length / 2);
 
-    center_start_x = (start_x + radius);
-    center_start_y = (start_y + radius);
-    center_end_x = (end_x - radius);
-    center_end_y = (end_y - radius);
+    center_start_x = (start_x + radius_x);
+    center_start_y = (start_y + radius_y);
+    center_end_x = (end_x - radius_x);
+    center_end_y = (end_y - radius_y);
 
     var centers_x = [
         center_end_x,
@@ -782,19 +1082,19 @@ function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end
         var center_x = centers_x[i];
         var center_y = centers_y[i];
         vertices.push(center_x, center_y);
-        colors.push(1.0, 0.0, 0.0);
+        colors.push(color_r, color_g, color_b);
         for (var j = 0; j < divisions; j++) {
-            var x = (center_x + (Math.cos(angle) * radius));
-            var y = (center_y + (Math.sin(angle) * radius));
+            var x = (center_x + (Math.cos(angle) * radius_x));
+            var y = (center_y + (Math.sin(angle) * radius_y));
             vertices.push(x, y);
-            colors.push(1.0, 0.0, 0.0);
+            colors.push(color_r, color_g, color_b);
             indices.push((corner_start + 0), (corner_start + j + 1), (corner_start + j + 2));
             angle += (Math.PI / 2 / divisions);
         }
-        var x = (center_x + (Math.cos(angle) * radius));
-        var y = (center_y + (Math.sin(angle) * radius));
+        var x = (center_x + (Math.cos(angle) * radius_x));
+        var y = (center_y + (Math.sin(angle) * radius_y));
         vertices.push(x, y);
-        colors.push(1.0, 0.0, 0.0);
+        colors.push(color_r, color_g, color_b);
     }
 
     for (var i = 0; i < 4; i++) {
@@ -806,12 +1106,12 @@ function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end
         indices.push(index_0, index_1, index_2, index_0, index_2, index_3);
     }
 
-    // var index_0 = (index_start + (0 * vertices_per_corner));
-    // var index_1 = (index_start + (1 * vertices_per_corner));
-    // var index_2 = (index_start + (2 * vertices_per_corner));
-    // var index_3 = (index_start + (3 * vertices_per_corner));
+    var index_0 = (index_start + (0 * vertices_per_corner));
+    var index_1 = (index_start + (1 * vertices_per_corner));
+    var index_2 = (index_start + (2 * vertices_per_corner));
+    var index_3 = (index_start + (3 * vertices_per_corner));
 
-    // notes_indices.push(index_0, index_1, index_2, index_0, index_2, index_3);
+    notes_indices.push(index_0, index_1, index_2, index_0, index_2, index_3);
 }
 
 
