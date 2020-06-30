@@ -439,22 +439,40 @@ var texture_program = createProgram(texture_vs_src, texture_fs_src);
 var texture_position = gl.getAttribLocation(texture_program, "position");
 var texture_texture = gl.getUniformLocation(texture_program, "texture");
 
+// var blur_fs_src = 
+//     'precision lowp float;' +
+//     'precision lowp int;' +
+//     'varying vec2 vTexcoord;' +
+//     'uniform sampler2D texture;' +
+//     'uniform vec2 resolution;' +
+//     'uniform vec2 direction;' +
+//     'uniform float weights[5];' +
+//     'void main(void) {' +
+//         'vec2 step = (1.0 / resolution);' +
+//         'vec3 color = (texture2D(texture, vTexcoord).rgb * weights[0]);' +
+//         'for (int i = 1; i < 5; i++) {' +
+//             'color += (texture2D(texture, (vTexcoord + (direction * step * float(i)))).rgb * weights[i]);' +
+//             'color += (texture2D(texture, (vTexcoord - (direction * step * float(i)))).rgb * weights[i]);' +
+//         '}' +
+//         'gl_FragColor = vec4(color, 1.0);' +
+//     '}';
+
 var blur_fs_src = 
-    'precision lowp float;' +
-    'precision lowp int;' +
+    'precision mediump float;' +
     'varying vec2 vTexcoord;' +
     'uniform sampler2D texture;' +
     'uniform vec2 resolution;' +
     'uniform vec2 direction;' +
-    'uniform float weights[5];' +
+    'uniform float weights[11];' +
+    'uniform float Z;' +
     'void main(void) {' +
-        'vec2 step = (1.0 / resolution);' +
-        'vec3 color = (texture2D(texture, vTexcoord).rgb * weights[0]);' +
-        'for (int i = 1; i < 5; i++) {' +
-            'color += (texture2D(texture, (vTexcoord + (direction * step * float(i)))).rgb * weights[i]);' +
-            'color += (texture2D(texture, (vTexcoord - (direction * step * float(i)))).rgb * weights[i]);' +
-        '}' +
-        'gl_FragColor = vec4(color, 1.0);' +
+        'vec3 final_colour = vec3(0.0);' +        
+        'for (int i=-5; i <= 5; ++i) {' +
+            'for (int j=-5; j <= 5; ++j) {' +
+                'final_colour += weights[5+j]*weights[5+i]*texture2D(texture, vTexcoord + (vec2(float(i),float(j)) / resolution)).rgb;' + 
+            '}' +
+        '}' +        
+        'gl_FragColor = vec4(final_colour/(Z*Z), 1.0);' +
     '}';
 
 var blur_program = createProgram(texture_vs_src, blur_fs_src);
@@ -463,6 +481,7 @@ var blur_texture = gl.getUniformLocation(blur_program, "texture");
 var blur_resolution = gl.getUniformLocation(blur_program, "resolution");
 var blur_direction = gl.getUniformLocation(blur_program, "direction");
 var blur_weights = gl.getUniformLocation(blur_program, "weights");
+var blur_Z = gl.getUniformLocation(blur_program, "Z");
 
 var mix_fs_src =
    'precision lowp float;' +
@@ -470,13 +489,16 @@ var mix_fs_src =
    'uniform sampler2D texture0;' +
    'uniform sampler2D texture1;' +
    'void main(void) {' +
-        'float gamma = 1.7;' +
+        'float gamma = 1.5;' +
         'float exposure = 1.0;' +
         'vec3 color1 = texture2D(texture0, vTexcoord).rgb;' +
         'vec3 color2 = texture2D(texture1, vTexcoord).rgb;' +
         'vec3 result = (color1 + color2);' +
-        'result = vec3((1.0 - exp(-result.r * exposure)), (1.0 - exp(-result.g * exposure)), (1.0 - exp(-result.b * exposure)));' +
         'result = vec3(pow(result.r, (1.0 / gamma)), pow(result.g, (1.0 / gamma)), pow(result.b, (1.0 / gamma)));' +
+        'if (length(color1) > 0.0) {' +
+            'result = vec3(clamp(result.r, 0.0, color1.r), clamp(result.g, 0.0, color1.g), clamp(result.b, 0.0, color1.b));' +
+        '}' +
+        //'result = vec3((1.0 - exp(-result.r * exposure)), (1.0 - exp(-result.g * exposure)), (1.0 - exp(-result.b * exposure)));' +
         'result *= max(1.0 - (0.4 * smoothstep(0.6, 0.8, vTexcoord.y)) - smoothstep(0.8, 0.975, vTexcoord.y), 0.0);' + 
         'gl_FragColor = vec4(result, 1.0);' +
    '}';
@@ -493,6 +515,24 @@ function swapBuffers() {
     var temp_tex = read_tex;
     read_tex = write_tex;
     write_tex = temp_tex;
+}
+
+function normpdf(x, sigma)
+{
+	return 0.39894*Math.exp(-0.5*x*x/(sigma*sigma))/sigma;
+}
+
+var weights = new Float32Array(11);
+var Z = 0.0;
+
+for (var j = 0; j <= 5; ++j)
+{
+    weights[5+j] = weights[5-j] = normpdf(j, 7.0);
+}
+
+for (var j = 0; j < 11; ++j)
+{
+    Z += weights[j];
 }
 
 requestAnimationFrame(drawScene);
@@ -532,77 +572,74 @@ function drawScene(currentTime) {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, notes_ib);
     gl.drawElements(gl.TRIANGLES, notes_indices.length, gl.UNSIGNED_SHORT, 0);
 
-    // Glow might not be needed, alot of channels only use particles
-    //for (var i = 0; i < 10; i++) {
-        //swapBuffers();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
+    gl.clear(gl.COLOR_BUFFER_BIT);
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
-        gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(blur_program);
+    gl.uniform1i(blur_texture, 0);
+    gl.uniform2f(blur_resolution, gl.canvas.width, gl.canvas.height);
+    gl.uniform2f(blur_direction, 1.0, 0.0);
+    gl.uniform1f(blur_Z, Z);
+    gl.uniform1fv(blur_weights, weights);//new Float32Array([0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216]));
+    gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
+    gl.vertexAttribPointer(blur_position, 2, gl.FLOAT, true, 0, 0);
+    gl.enableVertexAttribArray(blur_position);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, notes_tex);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    
+    // swapBuffers();
 
-        gl.useProgram(blur_program);
-        gl.uniform1i(blur_texture, 0);
-        gl.uniform2f(blur_resolution, gl.canvas.width, gl.canvas.height);
-        gl.uniform2f(blur_direction, 1.0, 0.0);
-        gl.uniform1fv(blur_weights, new Float32Array([0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216]));
-        gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
-        gl.vertexAttribPointer(blur_position, 2, gl.FLOAT, true, 0, 0);
-        gl.enableVertexAttribArray(blur_position);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, notes_tex);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+    // gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
+    // gl.clear(gl.COLOR_BUFFER_BIT);
+
+    // gl.useProgram(blur_program);
+    // gl.uniform1i(blur_texture, 0);
+    // gl.uniform2f(blur_resolution, gl.canvas.width, gl.canvas.height);
+    // gl.uniform2f(blur_direction, 0.0, 1.0);
+    // gl.uniform1fv(blur_weights, new Float32Array([0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216]));
+    // gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
+    // gl.vertexAttribPointer(blur_position, 2, gl.FLOAT, true, 0, 0);
+    // gl.enableVertexAttribArray(blur_position);
+    // gl.activeTexture(gl.TEXTURE0);
+    // gl.bindTexture(gl.TEXTURE_2D, read_tex);
+    // gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    // for (var i = 0; i < 5; i++) {
+    //     swapBuffers();
+
+    //     gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
+    //     gl.clear(gl.COLOR_BUFFER_BIT);
+
+    //     gl.useProgram(blur_program);
+    //     gl.uniform1i(blur_texture, 0);
+    //     gl.uniform2f(blur_resolution, gl.canvas.width, gl.canvas.height);
+    //     gl.uniform2f(blur_direction, 1.0, 0.0);
+    //     gl.uniform1fv(blur_weights, new Float32Array([0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216]));
+    //     gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
+    //     gl.vertexAttribPointer(blur_position, 2, gl.FLOAT, true, 0, 0);
+    //     gl.enableVertexAttribArray(blur_position);
+    //     gl.activeTexture(gl.TEXTURE0);
+    //     gl.bindTexture(gl.TEXTURE_2D, read_tex);
+    //     gl.drawArrays(gl.TRIANGLES, 0, 6);
         
-        swapBuffers();
+    //     swapBuffers();
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
-        gl.clear(gl.COLOR_BUFFER_BIT);
+    //     gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
+    //     gl.clear(gl.COLOR_BUFFER_BIT);
 
-        gl.useProgram(blur_program);
-        gl.uniform1i(blur_texture, 0);
-        gl.uniform2f(blur_resolution, gl.canvas.width, gl.canvas.height);
-        gl.uniform2f(blur_direction, 0.0, 1.0);
-        gl.uniform1fv(blur_weights, new Float32Array([0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216]));
-        gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
-        gl.vertexAttribPointer(blur_position, 2, gl.FLOAT, true, 0, 0);
-        gl.enableVertexAttribArray(blur_position);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, read_tex);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-    //}
-    for (var i = 0; i < 5; i++) {
-        swapBuffers();
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        gl.useProgram(blur_program);
-        gl.uniform1i(blur_texture, 0);
-        gl.uniform2f(blur_resolution, gl.canvas.width, gl.canvas.height);
-        gl.uniform2f(blur_direction, 1.0, 0.0);
-        gl.uniform1fv(blur_weights, new Float32Array([0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216]));
-        gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
-        gl.vertexAttribPointer(blur_position, 2, gl.FLOAT, true, 0, 0);
-        gl.enableVertexAttribArray(blur_position);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, read_tex);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-        
-        swapBuffers();
-
-        gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-
-        gl.useProgram(blur_program);
-        gl.uniform1i(blur_texture, 0);
-        gl.uniform2f(blur_resolution, gl.canvas.width, gl.canvas.height);
-        gl.uniform2f(blur_direction, 0.0, 1.0);
-        gl.uniform1fv(blur_weights, new Float32Array([0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216]));
-        gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
-        gl.vertexAttribPointer(blur_position, 2, gl.FLOAT, true, 0, 0);
-        gl.enableVertexAttribArray(blur_position);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, read_tex);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-    }
+    //     gl.useProgram(blur_program);
+    //     gl.uniform1i(blur_texture, 0);
+    //     gl.uniform2f(blur_resolution, gl.canvas.width, gl.canvas.height);
+    //     gl.uniform2f(blur_direction, 0.0, 1.0);
+    //     gl.uniform1fv(blur_weights, new Float32Array([0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216]));
+    //     gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
+    //     gl.vertexAttribPointer(blur_position, 2, gl.FLOAT, true, 0, 0);
+    //     gl.enableVertexAttribArray(blur_position);
+    //     gl.activeTexture(gl.TEXTURE0);
+    //     gl.bindTexture(gl.TEXTURE_2D, read_tex);
+    //     gl.drawArrays(gl.TRIANGLES, 0, 6);
+    // }
 
     swapBuffers();
 
