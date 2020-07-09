@@ -717,7 +717,7 @@ function drawScene(currentTime) {
 }
 
 function onMIDISuccess(access) {
-    alert(access.input.length);
+    alert(access.inputs.size);
     var iter = access.inputs.values();
     var promises = [];
     for (var input = iter.next(); input && !input.done; input = iter.next()) {
