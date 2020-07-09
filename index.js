@@ -320,42 +320,47 @@ var inputs = [];
 var outputs = [];
 
 function updateInfo() {
-    var inputsList = document.getElementById('inputs');
-    var outputsList = document.getElementById('outputs');
+    var inputElement = document.getElementById('input');
+    var outputElement = document.getElementById('output');
 
     if (inputs.length > 0) {
         for (var input of inputs) {
-            var div = document.createElement('div');
-            div.style.color = "gray";
-            var text = document.createTextNode(input);
-            div.appendChild(text);
-            inputsList.appendChild(div);
+            inputElement.innerText = input;
+
+            // var div = document.createElement('div');
+            // div.style.color = "gray";
+            // var text = document.createTextNode(input);
+            // div.appendChild(text);
+            // inputsList.appendChild(div);
         }
     }
     else {
-        var div = document.createElement('div');
-        div.style.color = "gray";
-        var text = document.createTextNode('None');
-        div.appendChild(text);
-        inputsList.appendChild(div);
+        inputElement.innerText = 'None';
+        // var div = document.createElement('div');
+        // div.style.color = "gray";
+        // var text = document.createTextNode('None');
+        // div.appendChild(text);
+        // inputsList.appendChild(div);
     }
 
 
     if (outputs.length > 0) {
         for (var output of outputs) {
-            var div = document.createElement('div');
-            div.style.color = "gray";
-            var text = document.createTextNode(output);
-            div.appendChild(text);
-            outputsList.appendChild(div);
+            outputElement.innerText = output;
+            // var div = document.createElement('div');
+            // div.style.color = "gray";
+            // var text = document.createTextNode(output);
+            // div.appendChild(text);
+            // outputsList.appendChild(div);
         }
     }
     else {
-       var div = document.createElement('div');
-       div.style.color = "gray";
-       var text = document.createTextNode('None');
-       div.appendChild(text);
-       outputsList.appendChild(div);
+        outputElement.innerText = 'None';
+    //    var div = document.createElement('div');
+    //    div.style.color = "gray";
+    //    var text = document.createTextNode('None');
+    //    div.appendChild(text);
+    //    outputsList.appendChild(div);
     }
 }
 
