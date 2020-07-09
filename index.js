@@ -718,6 +718,11 @@ function drawScene(currentTime) {
 
 function onMIDISuccess(access) {
     alert('midi success: ' + access.inputs.size);
+
+    access.inputs.forEach(function(key, port) {
+        alert(port.name);
+    });
+
     for (var input of access.inputs.values()) {
         input.onmidimessage = onMIDIMessage;
         inputs.push(input.name);
