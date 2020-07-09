@@ -719,6 +719,7 @@ function drawScene(currentTime) {
 }
 
 function onMIDISuccess(access) {
+    alert('midi success');
     for (var input of access.inputs.values()) {
         input.onmidimessage = onMIDIMessage;
         inputs.push(input.name);
