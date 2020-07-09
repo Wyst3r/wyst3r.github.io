@@ -717,33 +717,36 @@ function drawScene(currentTime) {
 }
 
 function onMIDISuccess(access) {
-    alert(access.inputs.size);
+    //alert(access.inputs.size);
     var iter = access.inputs.values();
-    var promises = [];
-    for (var input = iter.next(); input && !input.done; input = iter.next()) {
-        promise.push(input.value.open());
+    for (var input = iter.next(); !input.done; input = iter.next()) {
+        input.value.onmidimessage = onMIDIMessage;
+        inputs.push(input.value.name);
     }
 
     iter = access.outputs.values();
-    for (var output = iter.next(); output && !output.done; output = iter.next()) {
-        promises.push(output.value.open());
+    for (var output = iter.next(); !output.done; output = iter.next()) {
+        outputs.push(output.value.name);
     }
 
-    Promise.all(promises).catch(function(error) { alert(error); }).then(function() {
-        alert('ports opened');
-        iter = access.inputs.values();
-        for (var input = iter.next(); input && !input.done; input = iter.next()) {
-            //inputs.push(input.name);
-            alert('input.name: ' + input.name + ', input.value.name: ' + input.value.name);
-        }
+    updateInfo();
 
-        iter = access.outputs.values();
-        for (var output = iter.next(); output && !output.done; output = iter.next()) {
-            //outputs.push(output.name);
-        }
 
-        updateInfo();
-    });
+    // Promise.all(promises).catch(function(error) { alert(error); }).then(function() {
+    //     alert('ports opened');
+    //     iter = access.inputs.values();
+    //     for (var input = iter.next(); !input.done; input = iter.next()) {
+    //         //inputs.push(input.name);
+    //         alert('input.name: ' + input.name + ', input.value.name: ' + input.value.name);
+    //     }
+
+    //     iter = access.outputs.values();
+    //     for (var output = iter.next(); !output.done; output = iter.next()) {
+    //         //outputs.push(output.name);
+    //     }
+
+    //     updateInfo();
+    // });
 }
 
 function onMIDIFailure(e) {
