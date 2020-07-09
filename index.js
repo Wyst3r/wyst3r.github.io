@@ -199,16 +199,14 @@ var default_program = createProgram(default_vs_src, default_fs_src);
 var default_position = gl.getAttribLocation(default_program, "position");
 var default_color = gl.getAttribLocation(default_program, "color");
 
-const KeyStates = {
-    NONE : 0,
-    PRESSED : 1,
-    SONG : 2
-}
-
-var keyStates = [];
+var songKeyPressed = [];
+var pianoKeyPressed = [];
+var mouseKeyPressed = [];
 
 for (var key = 0; key < (white_key_count + black_key_count); key++) {
-    keyStates.push(KeyStates.NONE);
+    songKeyPressed.push(false);
+    pianoKeyPressed.push(false);
+    mouseKeyPressed.push(false);
 }
 
 const gradient = [
@@ -217,24 +215,14 @@ const gradient = [
 
 function updateKeys() {
     for (var key = 0; key < white_key_count; key++) {
-        var state = keyStates[white_keys[key]];
+        var index = white_keys[key];
+        var pressed = (songKeyPressed[index] || pianoKeyPressed[index] || mouseKeyPressed[index]);
         var primaryColor = [];
 
-        switch (state) {
-            case KeyStates.NONE: {
-                primaryColor.push(1, 1, 1);
-                break;
-            }
-
-            case KeyStates.PRESSED: {
-                primaryColor.push(notes_r, notes_g, notes_b);
-                break;
-            }
-
-            case KeyStates.SONG: {
-                primaryColor.push(notes_r, notes_g, notes_b);
-                break;
-            }
+        if (pressed) {
+            primaryColor.push(notes_r, notes_g, notes_b);
+        } else {
+            primaryColor.push(1, 1, 1);
         }
 
         for (var i = 0; i < 4; i++) {
@@ -249,24 +237,14 @@ function updateKeys() {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
     for (var key = 0; key < black_key_count; key++) {
-        var state = keyStates[black_keys[key]];
+        var index = black_keys[key];
+        var pressed = (songKeyPressed[index] || pianoKeyPressed[index] || mouseKeyPressed[index]);
         var primaryColor = [];
 
-        switch (state) {
-            case KeyStates.NONE: {
-                primaryColor.push(0, 0, 0);
-                break;
-            }
-
-            case KeyStates.PRESSED: {
-                primaryColor.push(notes_r, notes_g, notes_b);
-                break;
-            }
-
-            case KeyStates.SONG: {
-                primaryColor.push(notes_r, notes_g, notes_b);
-                break;
-            }
+        if (pressed) {
+            primaryColor.push(notes_r, notes_g, notes_b);
+        } else {
+            primaryColor.push(0, 0, 0);
         }
 
         for (var i = 0; i < 4; i++) {
@@ -320,47 +298,42 @@ var inputs = [];
 var outputs = [];
 
 function updateInfo() {
-    var inputElement = document.getElementById('input');
-    var outputElement = document.getElementById('output');
+    var inputsList = document.getElementById('inputs');
+    var outputsList = document.getElementById('outputs');
 
     if (inputs.length > 0) {
         for (var input of inputs) {
-            inputElement.innerText = input;
-
-            // var div = document.createElement('div');
-            // div.style.color = "gray";
-            // var text = document.createTextNode(input);
-            // div.appendChild(text);
-            // inputsList.appendChild(div);
+            var div = document.createElement('div');
+            div.style.color = "gray";
+            var text = document.createTextNode(input);
+            div.appendChild(text);
+            inputsList.appendChild(div);
         }
     }
     else {
-        inputElement.innerText = 'None';
-        // var div = document.createElement('div');
-        // div.style.color = "gray";
-        // var text = document.createTextNode('None');
-        // div.appendChild(text);
-        // inputsList.appendChild(div);
+        var div = document.createElement('div');
+        div.style.color = "gray";
+        var text = document.createTextNode('None');
+        div.appendChild(text);
+        inputsList.appendChild(div);
     }
 
 
     if (outputs.length > 0) {
         for (var output of outputs) {
-            outputElement.innerText = output;
-            // var div = document.createElement('div');
-            // div.style.color = "gray";
-            // var text = document.createTextNode(output);
-            // div.appendChild(text);
-            // outputsList.appendChild(div);
+            var div = document.createElement('div');
+            div.style.color = "gray";
+            var text = document.createTextNode(output);
+            div.appendChild(text);
+            outputsList.appendChild(div);
         }
     }
     else {
-        outputElement.innerText = 'None';
-    //    var div = document.createElement('div');
-    //    div.style.color = "gray";
-    //    var text = document.createTextNode('None');
-    //    div.appendChild(text);
-    //    outputsList.appendChild(div);
+       var div = document.createElement('div');
+       div.style.color = "gray";
+       var text = document.createTextNode('None');
+       div.appendChild(text);
+       outputsList.appendChild(div);
     }
 }
 
@@ -717,7 +690,6 @@ function drawScene(currentTime) {
 }
 
 function onMIDISuccess(access) {
-    //alert(access.inputs.size);
     var iter = access.inputs.values();
     for (var input = iter.next(); !input.done; input = iter.next()) {
         input.value.onmidimessage = onMIDIMessage;
@@ -730,23 +702,6 @@ function onMIDISuccess(access) {
     }
 
     updateInfo();
-
-
-    // Promise.all(promises).catch(function(error) { alert(error); }).then(function() {
-    //     alert('ports opened');
-    //     iter = access.inputs.values();
-    //     for (var input = iter.next(); !input.done; input = iter.next()) {
-    //         //inputs.push(input.name);
-    //         alert('input.name: ' + input.name + ', input.value.name: ' + input.value.name);
-    //     }
-
-    //     iter = access.outputs.values();
-    //     for (var output = iter.next(); !output.done; output = iter.next()) {
-    //         //outputs.push(output.name);
-    //     }
-
-    //     updateInfo();
-    // });
 }
 
 function onMIDIFailure(e) {
@@ -783,11 +738,11 @@ var tempo = 60; // TODO: Set to 0
 var prev_measure_start = null;
 
 function onNoteOn(note, time) {
-    keyStates[note - 21] = KeyStates.PRESSED;
+    pianoKeyPressed[note - 21] = true;
 }
 
 function onNoteOff(note, time) {
-    keyStates[note - 21] = KeyStates.NONE;
+    pianoKeyPressed[note - 21] = false;
 }
 
 function onMetronomeMeasure(time) {
@@ -899,16 +854,16 @@ function checkKeyPressed(id, event) {
     }
     
     if (idToKeyMap.has(id)) {
-        keyStates[idToKeyMap.get(id)] = KeyStates.NONE;
+        mouseKeyPressed[idToKeyMap.get(id)] = false;
     }
-    keyStates[pressedKey] = KeyStates.PRESSED;
+    mouseKeyPressed[pressedKey] = true;
 
     idToKeyMap.set(id, pressedKey);
 }
 
 function checkKeyReleased(id) {
     if (idToKeyMap.has(id)) {
-        keyStates[idToKeyMap.get(id)] = KeyStates.NONE;
+        mouseKeyPressed[idToKeyMap.get(id)] = false;
         idToKeyMap.delete(id);
     }
 }
@@ -1066,7 +1021,7 @@ function updateNotes() {
     var start_tick = millisecondsToTicks(time);
     var end_tick = (start_tick + (4 * ticks_per_beat * zoom) - 1);
 
-    keyStates.fill(KeyStates.NONE);
+    songKeyPressed.fill(false);
 
     for (var i = 0; i < notes_sorted.length; i++) {
         var note = notes_sorted[i];
@@ -1079,7 +1034,7 @@ function updateNotes() {
 
         if ((note.start <= start_tick) && 
             (note.end >= start_tick)) {
-                keyStates[note.key] = KeyStates.SONG;
+                songKeyPressed[note.key] = true;
         }
 
         var start_time = (note.start - start_tick);
