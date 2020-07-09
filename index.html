@@ -18,8 +18,9 @@
             }
             .info {
                 position: absolute;
-                top: 20px;
+                top: 50%;
                 left: 20px;
+                transform: translate(0%, -50%);
                 z-index: 3;
                 background-color: black;
                 color: white;
@@ -41,8 +42,8 @@
                 background-color: black;
             }
             .buttons {
-                width: 75px;
-                height: 75px;
+                width: 60px;
+                height: 60px;
                 margin-left: 2.5vw;
                 margin-right: 2.5vw;
             }
@@ -95,7 +96,7 @@
             </div>
             <div>
                 <div>Color:</div>
-                <input type="color" id="notes-color" value="#7FAF4B" onchange="onColorChanged(this.value)">
+                <input type="color" id="notes-color" value="#FF6BE6" onchange="onColorChanged(this.value)">
             </div>
         </div>
         <div>

@@ -908,7 +908,9 @@ function onToggleSound() {
     if (soundOn) {
         src = "./img/soundon.svg";
     } else {
-        output.clear();
+        for (var output of outputs) {
+            output.clear();
+        }
         src = "./img/soundoff.svg";
     }
     document.getElementById('soundicon').src = src;
