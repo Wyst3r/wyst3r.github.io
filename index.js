@@ -323,6 +323,8 @@ function updateInfo() {
     var inputElement = document.getElementById('input');
     var outputElement = document.getElementById('output');
 
+    alert(inputs.length);
+
     if (inputs.length > 0) {
         for (var input of inputs) {
             inputElement.innerText = input;
