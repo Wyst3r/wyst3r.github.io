@@ -719,17 +719,24 @@ function drawScene(currentTime) {
 function onMIDISuccess(access) {
     alert('midi success: ' + access.inputs.size);
 
-    access.inputs.forEach(function(key, port) {
-        alert(port.name);
-    });
+    var iter = access.inputs.values();
+    for (var input = iter.next(); !input.done; input = iter.next()) {
+        inputs.push(input.value);
+        alert(input.name);
+    }
 
-    for (var input of access.inputs.values()) {
-        input.onmidimessage = onMIDIMessage;
-        inputs.push(input.name);
+    iter = access.ouputs.values();
+    for (var output = iter.next(); !output.done; output = iter.next()) {
+        outputs.push(output.value);
     }
-    for (var output of access.outputs.values()) {
-        outputs.push(output.name);
-    }
+
+    // for (var input of access.inputs.values()) {
+    //     input.onmidimessage = onMIDIMessage;
+    //     inputs.push(input.name);
+    // }
+    // for (var output of access.outputs.values()) {
+    //     outputs.push(output.name);
+    // }
     
     updateInfo();
 }
