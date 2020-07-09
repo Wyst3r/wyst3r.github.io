@@ -513,11 +513,11 @@ for (var j = 0; j < 11; ++j)
     Z += weights[j];
 }
 
-requestAnimationFrame(drawScene);
+requestAnimationFrame(onDraw);
 
 var previousTime = 0.0;
 
-function drawScene(currentTime) {
+function onDraw(currentTime) {
     if (isPlaying) {
         time += (currentTime - previousTime);
     }
@@ -686,7 +686,7 @@ function drawScene(currentTime) {
     
     previousTime = currentTime;
 
-    requestAnimationFrame(drawScene);
+    requestAnimationFrame(onDraw);
 }
 
 function onMIDISuccess(access) {
@@ -868,36 +868,63 @@ function checkKeyReleased(id) {
     }
 }
 
+var sendNotesInterval = 100; // in milliseconds
+var notesSent = 0;
+
+function onSendNotes() {
+    var end_tick = millisecondsToTicks(time + (2 * sendNotesInterval));
+    while (true) {
+        if (notesSent >= notes_sorted.length) {
+            break;
+        }
+        var note = notes_sorted[notesSent];
+        if (note.start > end_tick) {
+            break;
+        }
+
+        if (soundOn) {
+            for (var output of outputs) {
+                var key = (note.key + 21);
+                var velocity = note.velocity;
+                var start = (playStartTime + ticksToMilliseconds(note.start));
+                var end = (playStartTime + ticksToMilliseconds(note.end));            
+                output.send([0x90, key, velocity], start); /* Note On */
+                output.send([0x80, key, 0], end); /* Note Off */
+            }
+        }
+        notesSent++;
+    }
+}
+
+function stopSendingNotes() {
+    if (!isPlaying) {
+        return;
+    }
+    
+    clearInterval(onSendNotes);
+    notesSent = 0;
+}
+
 var isPlaying = false;
+var playStartTime = 0;
 
 function onPlay() {
     isPlaying = true;
-    for (var note of notes_sorted) {
-        for (var output of outputs) {
-            var key = (note.key + 21);
-            var velocity = note.velocity;
-            var now = window.performance.now();
-            var start = (now + ticksToMilliseconds(note.start));
-            var end = (now + ticksToMilliseconds(note.end));            
-            output.send([0x90, key, velocity], start); /* Note On */
-            output.send([0x80, key, 0], end); /* Note Off */
-        }
-    }   
+    playStartTime = window.performance.now();
+
+    onSendNotes();
+    setInterval(onSendNotes, sendNotesInterval);
 }
 
 function onPause() {
     isPlaying = false;
-    for (var output of outputs) {
-        output.clear();
-    }
+    stopSendingNotes();
 }
 
 function onStop() {
     isPlaying = false;
     time = 0.0;
-    for (var output of outputs) {
-        output.clear();
-    }
+    stopSendingNotes();
 }
 
 var soundOn = true;
@@ -908,9 +935,6 @@ function onToggleSound() {
     if (soundOn) {
         src = "./img/soundon.svg";
     } else {
-        for (var output of outputs) {
-            output.clear();
-        }
         src = "./img/soundoff.svg";
     }
     document.getElementById('soundicon').src = src;
@@ -1085,7 +1109,7 @@ function updateNotes() {
         var radius_x = (white_key_width * 0.28);
         var radius_y = (radius_x * (gl.canvas.width / gl.canvas.height));
 
-        createRoundedRectangle(notes_vertices, notes_colors, notes_indices, start_x, start_y, end_x, end_y, radius_x, radius_y, notes_r, notes_g, notes_b);//(7 / gl.canvas.width) * 2, (7 / gl.canvas.height) * 2);
+        createRoundedRectangle(notes_vertices, notes_colors, notes_indices, start_x, start_y, end_x, end_y, radius_x, radius_y, notes_r, notes_g, notes_b);
     }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, notes_vb);
@@ -1103,7 +1127,6 @@ function updateNotes() {
 function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end_x, end_y, radius_x, radius_y, color_r, color_g, color_b) {
     var length_x = (end_x - start_x);
     var length_y = (end_y - start_y);
-    //var radius = (Math.min(length_x, length_y) / 2);
     var divisions = 15;
     var vertices_per_corner = (divisions + 2);
     var index_start = (vertices.length / 2);
