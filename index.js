@@ -305,7 +305,7 @@ function updateInfo() {
         for (var input of inputs) {
             var div = document.createElement('div');
             div.style.color = "gray";
-            var text = document.createTextNode(input);
+            var text = document.createTextNode(input.name);
             div.appendChild(text);
             inputsList.appendChild(div);
         }
@@ -323,7 +323,7 @@ function updateInfo() {
         for (var output of outputs) {
             var div = document.createElement('div');
             div.style.color = "gray";
-            var text = document.createTextNode(output);
+            var text = document.createTextNode(output.name);
             div.appendChild(text);
             outputsList.appendChild(div);
         }
@@ -693,12 +693,12 @@ function onMIDISuccess(access) {
     var iter = access.inputs.values();
     for (var input = iter.next(); !input.done; input = iter.next()) {
         input.value.onmidimessage = onMIDIMessage;
-        inputs.push(input.value.name);
+        inputs.push(input.value);
     }
 
     iter = access.outputs.values();
     for (var output = iter.next(); !output.done; output = iter.next()) {
-        outputs.push(output.value.name);
+        outputs.push(output.value);
     }
 
     updateInfo();
@@ -872,15 +872,46 @@ var isPlaying = false;
 
 function onPlay() {
     isPlaying = true;
+    for (var note of notes_sorted) {
+        for (var output of outputs) {
+            var key = (note.key + 21);
+            var velocity = note.velocity;
+            var now = window.performance.now();
+            var start = (now + ticksToMilliseconds(note.start));
+            var end = (now + ticksToMilliseconds(note.end));            
+            output.send([0x90, key, velocity], start); /* Note On */
+            output.send([0x80, key, 0], end); /* Note Off */
+        }
+    }   
 }
 
 function onPause() {
     isPlaying = false;
+    for (var output of outputs) {
+        output.clear();
+    }
 }
 
 function onStop() {
     isPlaying = false;
     time = 0.0;
+    for (var output of outputs) {
+        output.clear();
+    }
+}
+
+var soundOn = true;
+
+function onToggleSound() {
+    soundOn = !soundOn;    
+    var src = null;
+    if (soundOn) {
+        src = "./img/soundon.svg";
+    } else {
+        output.clear();
+        src = "./img/soundoff.svg";
+    }
+    document.getElementById('soundicon').src = src;
 }
 
 function onFileChanged() {
@@ -961,7 +992,7 @@ function loadMidi(midi) {
                     }
                 } else {
                     notes[nextIndex].set(note, notes_sorted.length);
-                    addNote(note, nextTime);
+                    addNote(note, nextTime, nextEvent.velocity);
                 }
 
                 break;
@@ -981,8 +1012,8 @@ function loadMidi(midi) {
 
 var notes_sorted = [];
 
-function addNote(key, start) {
-    notes_sorted.push({'key': key, 'start': start, 'end': null});
+function addNote(key, start, velocity) {
+    notes_sorted.push({'key': key, 'start': start, 'end': null, 'velocity': velocity});
 }
 
 var zoom = 1.0; // in measures

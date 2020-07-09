@@ -35,13 +35,14 @@
                 z-index: 3;
                 color: white;
                 background-color: rgba(0, 0, 0, 0.0);
+                white-space: nowrap;
             }
             img {
                 background-color: black;
             }
             .buttons {
-                width: 5vw;
-                height: 5vw;
+                width: 75px;
+                height: 75px;
                 margin-left: 2.5vw;
                 margin-right: 2.5vw;
             }
@@ -61,7 +62,7 @@
     <body">
         <div class="ui">
             <label>
-                <img src="./img/music.svg" class="buttons"/>
+                <img src="./img/folder.svg" class="buttons"/>
                 <input id="file" type="file" class="hidden" accept=".mid">
             </label>
             <label>
@@ -75,6 +76,10 @@
             <label>
                 <img src="./img/stop.svg" class="buttons"/>
                 <input id="stop" type="button" class="hidden" onclick="onStop()"/>
+            </label>
+            <label>
+                <img id="soundicon" src="./img/soundon.svg" class="buttons"/>
+                <input id="togglesound" type="button" class="hidden" onclick="onToggleSound()"/>
             </label>
         </div>
         <div class="info">
