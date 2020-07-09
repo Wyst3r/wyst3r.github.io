@@ -724,7 +724,7 @@ function onMIDISuccess(access) {
         promise.push(input.value.open());
     }
 
-    iter = access.ouputs.values();
+    iter = access.outputs.values();
     for (var output = iter.next(); output && !output.done; output = iter.next()) {
         promises.push(output.value.open());
     }
@@ -737,7 +737,7 @@ function onMIDISuccess(access) {
             alert('input.name: ' + input.name + ', input.value.name: ' + input.value.name);
         }
 
-        iter = access.ouputs.values();
+        iter = access.outputs.values();
         for (var output = iter.next(); output && !output.done; output = iter.next()) {
             //outputs.push(output.name);
         }
