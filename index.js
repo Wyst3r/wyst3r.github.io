@@ -826,8 +826,6 @@ function checkKeyPressed(id, event) {
     var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
     var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
 
-    alert('X: ' + x + ' Y: ' + y);
-
     var pressedKey = null;
 
     if (y > (-1.0 + white_key_height)) {
