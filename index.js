@@ -793,7 +793,7 @@ function onMouseLeave(event) {
 var currentTouches = new Map();
 
 function onTouchStart(event) {
-    event.preventDefault();
+    //event.preventDefault();
     for (var touch of event.changedTouches) {
         checkKeyPressed(touch.identifier, event);
         currentTouches.set(touch.identifier, touch);
@@ -801,7 +801,7 @@ function onTouchStart(event) {
 }
 
 function onTouchEnd(event) {
-    event.preventDefault();
+    //event.preventDefault();
     for (var touch of event.changedTouches) {
         if (currentTouches.has(touch.identifier)) {
             checkKeyReleased(touch.identifier);
@@ -811,7 +811,7 @@ function onTouchEnd(event) {
 }
 
 function onTouchMove(event) {
-    event.preventDefault();
+    //event.preventDefault();
     for (var touch of event.changedTouches) {
         if (currentTouches.has(touch.identifier)) {
             checkKeyPressed(touch.identifier, event);
