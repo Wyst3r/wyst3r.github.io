@@ -804,6 +804,7 @@ function onTouchEnd(event) {
     event.preventDefault();
     for (var touch of event.touches) {
         if (currentTouches.has(touch.identifier)) {
+            alert('onTouchEnd');
             checkKeyReleased(touch.identifier);
             currentTouches.delete(touch.identifier);
         }
