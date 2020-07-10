@@ -793,9 +793,7 @@ function onMouseLeave(event) {
 var currentTouches = new Map();
 
 function onTouchStart(event) {
-    alert('onTouchStart');
     for (var touch of event.touches) {
-        alert(touch.identifier);
         checkKeyPressed(touch.identifier, event);
         currentTouches.set(touch.identifier, touch);
     }
@@ -827,6 +825,8 @@ var idToKeyMap = new Map();
 function checkKeyPressed(id, event) {
     var x = (-1.0 + (2.0 * (event.clientX / window.innerWidth)));
     var y = (1.0 - (2.0 * (event.clientY / window.innerHeight)));
+
+    alert('X: ' + x + ' Y: ' + y);
 
     var pressedKey = null;
 
