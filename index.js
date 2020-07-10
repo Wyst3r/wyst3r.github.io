@@ -763,10 +763,97 @@ canvas.addEventListener('mousedown', onMouseDown);
 canvas.addEventListener('mousemove', onMouseMove);
 canvas.addEventListener('mouseup', onMouseUp);
 canvas.addEventListener('mouseleave', onMouseLeave);
-canvas.addEventListener('touchstart', onTouchStart, false);
-canvas.addEventListener('touchend', onTouchEnd, false);
-canvas.addEventListener('touchmove', onTouchMove, false);
-canvas.addEventListener('touchcancel', onTouchCancel, false);
+// canvas.addEventListener('touchstart', onTouchStart, false);
+// canvas.addEventListener('touchend', onTouchEnd, false);
+// canvas.addEventListener('touchmove', onTouchMove, false);
+// canvas.addEventListener('touchcancel', onTouchCancel, false);
+
+canvas.addEventListener("touchstart", Wbbmtt__touchHandler, false);
+canvas.addEventListener("touchend", Wbbmtt__touchHandler, false);
+canvas.addEventListener("touchcancel", Wbbmtt__touchHandler, false);
+canvas.addEventListener("touchmove", Wbbmtt__touchHandler, false);
+
+function storeTouch(array, touch) {
+    for (var i = 0; i < array.length; ++i) {
+        if (array[i] == null) { // if there's a room
+            array[i] = touch;
+            return i;
+        }
+    }
+    // append to tail if no room
+    array[i] = touch;
+    return i;
+}
+
+function findTouch(array, touch) {
+    for (var i = 0; i < array.length; ++i) {
+        if ((array[i] != undefined) && (array[i].identifier == touch.identifier)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+_trackingTouches = [];
+
+function Wbbmtt__drawTouchPoint(touch) {
+    var px = touch.pageX;
+    var py = touch.pageY;
+
+    alert('X: ' + px + ' Y: ' + py);
+}
+
+function Wbbmtt__drawTouches() {
+    for (var i = 0; i < this._trackingTouches.length; ++i) {
+        var touch = this._trackingTouches[i];
+        if (touch != undefined) {
+            Wbbmtt__drawTouchPoint(touch);
+        }
+    }
+}
+
+function Wbbmtt__touchHandler(event) {
+    if (true) {
+        event.preventDefault();
+    }
+
+    var touches = event.changedTouches;
+    for (var i = 0; i < touches.length; i++) {
+        var touch = touches[i];
+
+        // It's little bit foolish to dispatch again here
+        // though callback function from browser knows what happens.
+        // But pre and post process is same and this makes simple code.
+        switch (event.type) {
+            case "touchstart" :
+                storeTouch(_trackingTouches, copyTouch(touch));
+                break;
+            case "touchmove" :
+                var idx = findTouch(_trackingTouches, touch);
+                if (idx < 0) {
+                    alert("Not found that identifier for move event.");
+                    return;
+                } else {
+                    _trackingTouches[idx] = copyTouch(touch);
+                }
+                break;
+            case "touchend" : // fall through
+            case "touchcancel" :
+                var idx = findTouch(this._trackingTouches, touch);
+                if (idx < 0) {
+                    alert("Not found that identifier for end or cancel event.");
+                } else {
+                    _trackingTouches[idx] = null;
+                }
+                break;
+            default :
+                alert("unknown event.type");
+                break;
+        }
+    }
+
+    Wbbmtt__drawTouches();
+}
 
 var isMouseDown = false;
 
