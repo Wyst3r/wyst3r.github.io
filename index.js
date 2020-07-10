@@ -826,8 +826,15 @@ function onTouchCancel(event) {
 var idToKeyMap = new Map();
 
 function checkKeyPressed(id, event) {
-    var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
-    var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
+    var eventX = event.pageX;
+    var eventY = event.pageY;
+    if (!eventX || !eventY) {
+        eventX = event.clientX;
+        eventY = event.clientY;
+    }
+
+    var x = (-1.0 + (2.0 * (eventX / window.innerWidth)));
+    var y = (1.0 - (2.0 * (eventY / window.innerHeight)));
 
     alert('X: ' + x + ' Y: ' + y);
 
