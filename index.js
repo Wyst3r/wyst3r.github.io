@@ -763,10 +763,10 @@ canvas.addEventListener('mousedown', onMouseDown);
 canvas.addEventListener('mousemove', onMouseMove);
 canvas.addEventListener('mouseup', onMouseUp);
 canvas.addEventListener('mouseleave', onMouseLeave);
-canvas.addEventListener('touchstart', onTouchStart);
-canvas.addEventListener('touchend', onTouchEnd);
-canvas.addEventListener('touchmove', onTouchMove);
-canvas.addEventListener('touchcancel', onTouchCancel);
+canvas.addEventListener('touchstart', onTouchStart, false);
+canvas.addEventListener('touchend', onTouchEnd, false);
+canvas.addEventListener('touchmove', onTouchMove, false);
+canvas.addEventListener('touchcancel', onTouchCancel, false);
 
 var isMouseDown = false;
 
@@ -792,16 +792,28 @@ function onMouseLeave(event) {
 
 var currentTouches = new Map();
 
+function copyTouch(touch) {
+    return {
+        identifier : touch.identifier,
+        radiusX : touch.radiusX,
+        radiusY : touch.radiusY,
+        pageX : touch.pageX,
+        pageY : touch.pageY,
+        screenX : touch.screenX,
+        screenY : touch.screenY
+    };
+}
+
 function onTouchStart(event) {
-    //event.preventDefault();
+    event.preventDefault();
     for (var touch of event.changedTouches) {
         checkKeyPressed(touch.identifier, event);
-        currentTouches.set(touch.identifier, touch);
+        currentTouches.set(touch.identifier, copyTouch(touch));
     }
 }
 
 function onTouchEnd(event) {
-    //event.preventDefault();
+    event.preventDefault();
     for (var touch of event.changedTouches) {
         if (currentTouches.has(touch.identifier)) {
             checkKeyReleased(touch.identifier);
@@ -811,7 +823,7 @@ function onTouchEnd(event) {
 }
 
 function onTouchMove(event) {
-    //event.preventDefault();
+    event.preventDefault();
     for (var touch of event.changedTouches) {
         if (currentTouches.has(touch.identifier)) {
             checkKeyPressed(touch.identifier, event);
@@ -826,15 +838,8 @@ function onTouchCancel(event) {
 var idToKeyMap = new Map();
 
 function checkKeyPressed(id, event) {
-    var eventX = event.pageX;
-    var eventY = event.pageY;
-    if (!eventX || !eventY) {
-        eventX = event.clientX;
-        eventY = event.clientY;
-    }
-
-    var x = (-1.0 + (2.0 * (eventX / window.innerWidth)));
-    var y = (1.0 - (2.0 * (eventY / window.innerHeight)));
+    var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
+    var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
 
     alert('X: ' + x + ' Y: ' + y);
 
