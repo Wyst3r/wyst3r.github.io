@@ -793,7 +793,9 @@ function onMouseLeave(event) {
 var currentTouches = new Map();
 
 function onTouchStart(event) {
-    for (var touch of event.touches) {   
+    alert('onTouchStart');
+    for (var touch of event.touches) {
+        alert(touch.identifier);
         checkKeyPressed(touch.identifier, event);
         currentTouches.set(touch.identifier, touch);
     }
@@ -868,12 +870,15 @@ function checkKeyReleased(id) {
     }
 }
 
-var sendNotesInterval = 100; // in milliseconds
+var sendNotesInterval = 50; // in milliseconds
 var notesSent = 0;
 
 function onSendNotes() {
     var end_tick = millisecondsToTicks(time + (2 * sendNotesInterval));
     while (true) {
+        if (!isPlaying) {
+            break;
+        }
         if (notesSent >= notes_sorted.length) {
             break;
         }
@@ -886,8 +891,8 @@ function onSendNotes() {
             for (var output of outputs) {
                 var key = (note.key + 21);
                 var velocity = note.velocity;
-                var start = (playStartTime + ticksToMilliseconds(note.start));
-                var end = (playStartTime + ticksToMilliseconds(note.end));            
+                var start = (offset + ticksToMilliseconds(note.start));
+                var end = (offset + ticksToMilliseconds(note.end));            
                 output.send([0x90, key, velocity], start); /* Note On */
                 output.send([0x80, key, 0], end); /* Note Off */
             }
@@ -896,35 +901,27 @@ function onSendNotes() {
     }
 }
 
-function stopSendingNotes() {
-    if (!isPlaying) {
-        return;
-    }
-    
-    clearInterval(onSendNotes);
-    notesSent = 0;
-}
-
 var isPlaying = false;
-var playStartTime = 0;
 
 function onPlay() {
+    if (isPlaying) {
+        return;
+    }
     isPlaying = true;
-    playStartTime = window.performance.now();
-
+    offset = (window.performance.now() - time);
     onSendNotes();
     setInterval(onSendNotes, sendNotesInterval);
 }
 
 function onPause() {
     isPlaying = false;
-    stopSendingNotes();
 }
 
 function onStop() {
     isPlaying = false;
+    clearInterval(onSendNotes);
     time = 0.0;
-    stopSendingNotes();
+    notesSent = 0;
 }
 
 var soundOn = true;
@@ -1044,6 +1041,7 @@ function addNote(key, start, velocity) {
 
 var zoom = 1.0; // in measures
 var time = 0.0; // in milliseconds
+var offset = 0.0; // in milliseconds
 
 function ticksToMilliseconds(ticks) {
     return ((60000.0 / (tempo * ticks_per_beat)) * ticks);
