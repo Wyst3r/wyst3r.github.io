@@ -823,10 +823,10 @@ function onTouchCancel(event) {
 var idToKeyMap = new Map();
 
 function checkKeyPressed(id, event) {
-    var x = (-1.0 + (2.0 * (event.clientX / window.innerWidth)));
-    var y = (1.0 - (2.0 * (event.clientY / window.innerHeight)));
+    var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
+    var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
 
-    alert('X: ' + event.clientX + ' Y: ' + event.clientY);
+    alert('X: ' + x + ' Y: ' + y);
 
     var pressedKey = null;
 
