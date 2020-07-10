@@ -794,7 +794,7 @@ var currentTouches = new Map();
 
 function onTouchStart(event) {
     event.preventDefault();
-    for (var touch of event.touches) {
+    for (var touch of event.changedTouches) {
         checkKeyPressed(touch.identifier, event);
         currentTouches.set(touch.identifier, touch);
     }
@@ -812,7 +812,7 @@ function onTouchEnd(event) {
 
 function onTouchMove(event) {
     event.preventDefault();
-    for (var touch of event.touches) {
+    for (var touch of event.changedTouches) {
         if (currentTouches.has(touch.identifier)) {
             checkKeyPressed(touch.identifier, event);
         }
