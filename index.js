@@ -764,9 +764,9 @@ canvas.addEventListener('mousemove', onMouseMove);
 canvas.addEventListener('mouseup', onMouseUp);
 canvas.addEventListener('mouseleave', onMouseLeave);
 canvas.addEventListener('touchstart', onTouchStart);
-//canvas.addEventListener('touchend', onTouchEnd);
-//canvas.addEventListener('touchmove', onTouchMove);
-//canvas.addEventListener('touchcancel', onTouchCancel);
+canvas.addEventListener('touchend', onTouchEnd);
+canvas.addEventListener('touchmove', onTouchMove);
+canvas.addEventListener('touchcancel', onTouchCancel);
 
 // canvas.addEventListener("touchstart", Wbbmtt__touchHandler, false);
 // canvas.addEventListener("touchend", Wbbmtt__touchHandler, false);
