@@ -818,7 +818,6 @@ function Wbbmtt__touchHandler(event) {
     var touches = event.changedTouches;
     for (var i = 0; i < touches.length; i++) {
         var touch = touches[i];
-        alert('X: ' + touch.pageX + ' Y: ' + touch.pageY);
 
         // It's little bit foolish to dispatch again here
         // though callback function from browser knows what happens.
