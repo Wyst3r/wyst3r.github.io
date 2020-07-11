@@ -902,21 +902,28 @@ function copyTouch(touch) {
     };
 }
 
-function onTouchStart(event) {
-    event.preventDefault();
+function updateTouches() {
     var touchesList = document.getElementById('touches');
     while (touchesList.firstElementChild) {
         touchesList.removeChild(touchesList.lastElementChild);
     }
-    for (var touch of event.changedTouches) {
+    for (var touch of currentTouches) {
         var div = document.createElement('div');
         div.style.color = "gray";
         var text = document.createTextNode('X: ' + touch.pageX + ' Y: ' + touch.pageY);
         div.appendChild(text);
         touchesList.appendChild(div);
-        //checkKeyPressed(touch.identifier, event);
-        //currentTouches.set(touch.identifier, copyTouch(touch));
     }
+}
+
+function onTouchStart(event) {
+    event.preventDefault();    
+    for (var touch of event.changedTouches) {
+        checkKeyPressed(touch.identifier, touch);
+        currentTouches.set(touch.identifier, copyTouch(touch));
+    }
+
+    //updateTouches();
 }
 
 function onTouchEnd(event) {
@@ -927,15 +934,19 @@ function onTouchEnd(event) {
             currentTouches.delete(touch.identifier);
         }
     }
+    
+    //updateTouches();
 }
 
 function onTouchMove(event) {
     event.preventDefault();
     for (var touch of event.changedTouches) {
         if (currentTouches.has(touch.identifier)) {
-            checkKeyPressed(touch.identifier, event);
+            checkKeyPressed(touch.identifier, touch);
         }
     }
+    
+    //updateTouches();
 }
 
 function onTouchCancel(event) {
@@ -947,8 +958,6 @@ var idToKeyMap = new Map();
 function checkKeyPressed(id, event) {
     var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
     var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
-
-    alert('X: ' + x + ' Y: ' + y);
 
     var pressedKey = null;
 
