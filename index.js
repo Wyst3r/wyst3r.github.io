@@ -55,9 +55,7 @@ for (var key = 0; key < white_key_count; key++)
     const end_y = (-1.0 + white_key_height);
     const index_start = (white_key_vertices.length / 2);
 
-    white_key_vertices.push(start_x, start_y, start_x, end_y, end_x, end_y, end_x, start_y);
-    white_key_colors.push(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
-    white_key_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 0), (index_start + 2), (index_start + 3));
+    createRectangle(white_key_vertices, white_key_colors, white_key_indices, start_x, start_y, end_x, end_y, 1.0, 1.0, 1.0);
 
     white_key_outline_colors.push(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
     white_key_outline_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 3));
@@ -79,10 +77,8 @@ for (var key = 0; key < 36; key++) {
     const end_x = (-1.0 + black_key_offset + black_key_width);
     const end_y = (-1.0 + white_key_height);
     const index_start = (black_key_vertices.length / 2);
-
-    black_key_vertices.push(start_x, start_y, start_x, end_y, end_x, end_y, end_x, start_y);
-    black_key_colors.push(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-    black_key_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 0), (index_start + 2), (index_start + 3));
+    
+    createRectangle(black_key_vertices, black_key_colors, black_key_indices, start_x, start_y, end_x, end_y, 0.0, 0.0, 0.0);
     
     black_key_outline_colors.push(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
     black_key_outline_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 3));
@@ -93,9 +89,9 @@ for (var key = 0; key < 36; key++) {
     key_end_x[black_keys[key]] = end_x;
 }
 
-var octave_r = 0.2;
-var octave_g = 0.2;
-var octave_b = 0.2;
+var octave_r = 0.3;
+var octave_g = 0.3;
+var octave_b = 0.3;
 
 var octaves_vertices = [];
 var octaves_colors = [];
@@ -178,6 +174,10 @@ gl.bindBuffer(gl.ARRAY_BUFFER, null);
 var notes_vb = gl.createBuffer();
 var notes_cb = gl.createBuffer();
 var notes_ib = gl.createBuffer();
+
+var timeline_vb = gl.createBuffer();
+var timeline_cb = gl.createBuffer();
+var timeline_ib = gl.createBuffer();
 
 var default_vs_src =
    'attribute vec2 position;' +
@@ -549,6 +549,16 @@ function onDraw(currentTime) {
     gl.enableVertexAttribArray(default_color);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, notes_ib);
     gl.drawElements(gl.TRIANGLES, notes_indices.length, gl.UNSIGNED_SHORT, 0);
+
+    gl.useProgram(default_program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, timeline_vb);
+    gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
+    gl.enableVertexAttribArray(default_position);
+    gl.bindBuffer(gl.ARRAY_BUFFER, timeline_cb);
+    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(default_color);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, timeline_ib);
+    gl.drawElements(gl.TRIANGLES, timeline_indices.length, gl.UNSIGNED_SHORT, 0);
 
     // gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
     // gl.clear(gl.COLOR_BUFFER_BIT);
@@ -978,6 +988,8 @@ function notesLeft(midi, indices) {
     return false;
 }
 
+var song_length = 0;
+
 function loadMidi(midi) {
     ticks_per_beat = midi.header.ticksPerBeat;
     var times = new Array(midi.tracks.length);
@@ -1012,9 +1024,6 @@ function loadMidi(midi) {
         times[nextIndex] = nextTime;
         indices[nextIndex]++;
 
-        if (nextEvent.meta) {
-            continue;
-        }
         switch (nextEvent.type) {
             case 'noteOn': {
                 var note = (nextEvent.noteNumber - 21);
@@ -1039,8 +1048,52 @@ function loadMidi(midi) {
                 }
                 break;
             }
+
+            case 'endOfTrack': {
+                song_length = Math.max(song_length, nextTime);
+            }
         }
     }
+
+    updateTimeline();
+}
+
+var timeline_vertices = [];
+var timeline_colors = [];
+var timeline_indices = [];
+
+var timeline_start_x = 0.8;
+var timeline_start_y = -0.6;
+var timeline_end_x = 1.0;
+var timeline_end_y = 0.6;
+
+function updateTimeline() {
+    timeline_vertices = [];
+    timeline_colors = [];
+    timeline_indices = [];
+
+    var total_width = (timeline_end_x - timeline_start_x);
+    var total_height = (timeline_end_y - timeline_start_y);
+    var units_per_tick = (total_height / song_length);
+
+    for (var note of notes_sorted) {
+        var start_x = (timeline_start_x + ((0.5 + (0.5 * key_start_x[note.key])) * total_width));
+        var start_y = (timeline_start_y + (units_per_tick * note.start));
+        var end_x = (timeline_start_x + ((0.5 + (0.5 * key_start_x[note.key])) * total_width)) + 0.002;
+        var end_y = (timeline_start_y + (units_per_tick * note.end)) + 0.002;
+
+        createRectangle(timeline_vertices, timeline_colors, timeline_indices, start_x, start_y, end_x, end_y, notes_r, notes_g, notes_b);
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, timeline_vb);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(timeline_vertices), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    gl.bindBuffer(gl.ARRAY_BUFFER, timeline_cb);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(timeline_colors), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, timeline_ib);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(timeline_indices), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 }
 
 var notes_sorted = [];
@@ -1131,6 +1184,12 @@ function updateNotes() {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 }
 
+function createRectangle(vertices, colors, indices, start_x, start_y, end_x, end_y, color_r, color_g, color_b) {
+    var index_start = (vertices.length / 2);
+    vertices.push(start_x, start_y, start_x, end_y, end_x, end_y, end_x, start_y);
+    colors.push(color_r, color_g, color_b, color_r, color_g, color_b, color_r, color_g, color_b, color_r, color_g, color_b);    
+    indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 0), (index_start + 2), (index_start + 3));
+}
 
 function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end_x, end_y, radius_x, radius_y, color_r, color_g, color_b) {
     var length_x = (end_x - start_x);
