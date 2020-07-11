@@ -768,104 +768,6 @@ canvas.addEventListener('touchend', onTouchEnd);
 canvas.addEventListener('touchmove', onTouchMove);
 canvas.addEventListener('touchcancel', onTouchCancel);
 
-// canvas.addEventListener("touchstart", Wbbmtt__touchHandler, false);
-// canvas.addEventListener("touchend", Wbbmtt__touchHandler, false);
-// canvas.addEventListener("touchcancel", Wbbmtt__touchHandler, false);
-// canvas.addEventListener("touchmove", Wbbmtt__touchHandler, false);
-
-function storeTouch(array, touch) {
-    for (var i = 0; i < array.length; ++i) {
-        if (array[i] == null) { // if there's a room
-            array[i] = touch;
-            return i;
-        }
-    }
-    // append to tail if no room
-    array[i] = touch;
-    return i;
-}
-
-function findTouch(array, touch) {
-    for (var i = 0; i < array.length; ++i) {
-        if ((array[i] != undefined) && (array[i].identifier == touch.identifier)) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-_trackingTouches = [];
-
-function Wbbmtt__drawTouchPoint(touch) {
-    var px = touch.pageX;
-    var py = touch.pageY;
-}
-
-function Wbbmtt__drawTouches() {
-    for (var i = 0; i < this._trackingTouches.length; ++i) {
-        var touch = this._trackingTouches[i];
-        if (touch != undefined) {
-            Wbbmtt__drawTouchPoint(touch);
-        }
-    }
-}
-
-function Wbbmtt__touchHandler(event) {
-    if (true) {
-        event.preventDefault();
-    }
-
-    var touches = event.changedTouches;
-    for (var i = 0; i < touches.length; i++) {
-        var touch = touches[i];
-
-        // It's little bit foolish to dispatch again here
-        // though callback function from browser knows what happens.
-        // But pre and post process is same and this makes simple code.
-        switch (event.type) {
-            case "touchstart" :
-                storeTouch(_trackingTouches, copyTouch(touch));
-                break;
-            case "touchmove" :
-                var idx = findTouch(_trackingTouches, touch);
-                if (idx < 0) {
-                    alert("Not found that identifier for move event.");
-                    return;
-                } else {
-                    _trackingTouches[idx] = copyTouch(touch);
-                }
-                break;
-            case "touchend" : // fall through
-            case "touchcancel" :
-                var idx = findTouch(_trackingTouches, touch);
-                if (idx < 0) {
-                    alert("Not found that identifier for end or cancel event.");
-                } else {
-                    _trackingTouches[idx] = null;
-                }
-                break;
-            default :
-                alert("unknown event.type");
-                break;
-        }
-    }
-
-    var touchesList = document.getElementById('touches');
-    while (touchesList.firstElementChild) {
-        touchesList.removeChild(touchesList.lastElementChild);
-    }
-    for (var touch of _trackingTouches) {
-        var div = document.createElement('div');
-        div.style.color = "gray";
-        var text = document.createTextNode('X: ' + touch.pageX + ' Y: ' + touch.pageY);
-        div.appendChild(text);
-        touchesList.appendChild(div);
-    }
-    
-
-    //Wbbmtt__drawTouches();
-}
-
 var isMouseDown = false;
 
 function onMouseDown(event) {
@@ -890,40 +792,12 @@ function onMouseLeave(event) {
 
 var currentTouches = new Map();
 
-function copyTouch(touch) {
-    return {
-        identifier : touch.identifier,
-        radiusX : touch.radiusX,
-        radiusY : touch.radiusY,
-        pageX : touch.pageX,
-        pageY : touch.pageY,
-        screenX : touch.screenX,
-        screenY : touch.screenY
-    };
-}
-
-function updateTouches() {
-    var touchesList = document.getElementById('touches');
-    while (touchesList.firstElementChild) {
-        touchesList.removeChild(touchesList.lastElementChild);
-    }
-    for (var touch of currentTouches) {
-        var div = document.createElement('div');
-        div.style.color = "gray";
-        var text = document.createTextNode('X: ' + touch.pageX + ' Y: ' + touch.pageY);
-        div.appendChild(text);
-        touchesList.appendChild(div);
-    }
-}
-
 function onTouchStart(event) {
     event.preventDefault();    
     for (var touch of event.changedTouches) {
         checkKeyPressed(touch.identifier, touch);
-        currentTouches.set(touch.identifier, copyTouch(touch));
+        currentTouches.set(touch.identifier, touch);
     }
-
-    //updateTouches();
 }
 
 function onTouchEnd(event) {
@@ -934,8 +808,6 @@ function onTouchEnd(event) {
             currentTouches.delete(touch.identifier);
         }
     }
-    
-    //updateTouches();
 }
 
 function onTouchMove(event) {
@@ -945,8 +817,6 @@ function onTouchMove(event) {
             checkKeyPressed(touch.identifier, touch);
         }
     }
-    
-    //updateTouches();
 }
 
 function onTouchCancel(event) {
