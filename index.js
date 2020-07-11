@@ -855,19 +855,35 @@ function checkKeyPressed(id, event) {
     if (pressedKey == null) {
         pressedKey = white_keys[Math.floor((x - (-1.0)) / white_key_width)];
     }
-    
-    if (idToKeyMap.has(id)) {
-        mouseKeyPressed[idToKeyMap.get(id)] = false;
-    }
-    mouseKeyPressed[pressedKey] = true;
 
+    if (idToKeyMap.has(id) && (pressedKey == idToKeyMap.get(id))) {
+        return;
+    }
+    
+    checkKeyReleased(id);
+    mouseKeyPressed[pressedKey] = true;
     idToKeyMap.set(id, pressedKey);
+    sendNoteOn(pressedKey);
 }
 
 function checkKeyReleased(id) {
     if (idToKeyMap.has(id)) {
-        mouseKeyPressed[idToKeyMap.get(id)] = false;
+        var key = idToKeyMap.get(id);
+        mouseKeyPressed[key] = false;
         idToKeyMap.delete(id);
+        sendNoteOff(key);
+    }
+}
+
+function sendNoteOn(key, velocity = 0x3F, timestamp = window.performance.now()) {   
+    for (var output of outputs) {         
+        output.send([0x90, (key + 21), velocity], timestamp);
+    }
+}
+
+function sendNoteOff(key, timestamp = window.performance.now()) {    
+    for (var output of outputs) {
+        output.send([0x80, (key + 21), 0], timestamp);
     }
 }
 
@@ -887,16 +903,9 @@ function onSendNotes() {
         if (note.start > end_tick) {
             break;
         }
-
         if (soundOn) {
-            for (var output of outputs) {
-                var key = (note.key + 21);
-                var velocity = note.velocity;
-                var start = (offset + ticksToMilliseconds(note.start));
-                var end = (offset + ticksToMilliseconds(note.end));            
-                output.send([0x90, key, velocity], start); /* Note On */
-                output.send([0x80, key, 0], end); /* Note Off */
-            }
+            sendNoteOn(note.key, note.velocity, (offset + ticksToMilliseconds(note.start)));
+            sendNoteOff(note.key, (offset + ticksToMilliseconds(note.end)));
         }
         notesSent++;
     }
