@@ -799,8 +799,6 @@ _trackingTouches = [];
 function Wbbmtt__drawTouchPoint(touch) {
     var px = touch.pageX;
     var py = touch.pageY;
-
-    alert('X: ' + px + ' Y: ' + py);
 }
 
 function Wbbmtt__drawTouches() {
@@ -820,6 +818,7 @@ function Wbbmtt__touchHandler(event) {
     var touches = event.changedTouches;
     for (var i = 0; i < touches.length; i++) {
         var touch = touches[i];
+        alert('X: ' + touch.pageX + ' Y: ' + touch.pageY);
 
         // It's little bit foolish to dispatch again here
         // though callback function from browser knows what happens.
@@ -839,7 +838,7 @@ function Wbbmtt__touchHandler(event) {
                 break;
             case "touchend" : // fall through
             case "touchcancel" :
-                var idx = findTouch(this._trackingTouches, touch);
+                var idx = findTouch(_trackingTouches, touch);
                 if (idx < 0) {
                     alert("Not found that identifier for end or cancel event.");
                 } else {
@@ -852,7 +851,20 @@ function Wbbmtt__touchHandler(event) {
         }
     }
 
-    Wbbmtt__drawTouches();
+    var touchesList = document.getElementById('touches');
+    while (touchesList.firstChild) {
+        touchesList.removeChild(touchesList.lastChild);
+    }
+    for (var touch of _trackingTouches) {
+        var div = document.createElement('div');
+        div.style.color = "gray";
+        var text = document.createTextNode('X: ' + touch.pageX + ' Y: ' + touch.pageY);
+        div.appendChild(text);
+        touchesList.appendChild(div);
+    }
+    
+
+    //Wbbmtt__drawTouches();
 }
 
 var isMouseDown = false;
