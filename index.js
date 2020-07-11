@@ -763,15 +763,15 @@ canvas.addEventListener('mousedown', onMouseDown);
 canvas.addEventListener('mousemove', onMouseMove);
 canvas.addEventListener('mouseup', onMouseUp);
 canvas.addEventListener('mouseleave', onMouseLeave);
-// canvas.addEventListener('touchstart', onTouchStart, false);
-// canvas.addEventListener('touchend', onTouchEnd, false);
-// canvas.addEventListener('touchmove', onTouchMove, false);
-// canvas.addEventListener('touchcancel', onTouchCancel, false);
+canvas.addEventListener('touchstart', onTouchStart);
+//canvas.addEventListener('touchend', onTouchEnd);
+//canvas.addEventListener('touchmove', onTouchMove);
+//canvas.addEventListener('touchcancel', onTouchCancel);
 
-canvas.addEventListener("touchstart", Wbbmtt__touchHandler, false);
-canvas.addEventListener("touchend", Wbbmtt__touchHandler, false);
-canvas.addEventListener("touchcancel", Wbbmtt__touchHandler, false);
-canvas.addEventListener("touchmove", Wbbmtt__touchHandler, false);
+// canvas.addEventListener("touchstart", Wbbmtt__touchHandler, false);
+// canvas.addEventListener("touchend", Wbbmtt__touchHandler, false);
+// canvas.addEventListener("touchcancel", Wbbmtt__touchHandler, false);
+// canvas.addEventListener("touchmove", Wbbmtt__touchHandler, false);
 
 function storeTouch(array, touch) {
     for (var i = 0; i < array.length; ++i) {
@@ -851,8 +851,8 @@ function Wbbmtt__touchHandler(event) {
     }
 
     var touchesList = document.getElementById('touches');
-    while (touchesList.firstChild) {
-        touchesList.removeChild(touchesList.lastChild);
+    while (touchesList.firstElementChild) {
+        touchesList.removeChild(touchesList.lastElementChild);
     }
     for (var touch of _trackingTouches) {
         var div = document.createElement('div');
@@ -904,9 +904,18 @@ function copyTouch(touch) {
 
 function onTouchStart(event) {
     event.preventDefault();
+    var touchesList = document.getElementById('touches');
+    while (touchesList.firstElementChild) {
+        touchesList.removeChild(touchesList.lastElementChild);
+    }
     for (var touch of event.changedTouches) {
-        checkKeyPressed(touch.identifier, event);
-        currentTouches.set(touch.identifier, copyTouch(touch));
+        var div = document.createElement('div');
+        div.style.color = "gray";
+        var text = document.createTextNode('X: ' + touch.pageX + ' Y: ' + touch.pageY);
+        div.appendChild(text);
+        touchesList.appendChild(div);
+        //checkKeyPressed(touch.identifier, event);
+        //currentTouches.set(touch.identifier, copyTouch(touch));
     }
 }
 
