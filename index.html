@@ -2,8 +2,9 @@
 <html>
     <head>
         <title>MIDI Test</title>
+        <script src="./lib/jscolor.js"></script>
+        <script src="./lib/midi-parser.js"></script>
         <script async src="./index.js"></script>
-        <script async src="./lib/midi-parser.js"></script>
         <style>
             .hidden {
                 position:absolute;
@@ -96,7 +97,7 @@
             </div>
             <div>
                 <div>Color:</div>
-                <input type="color" id="notes-color" value="#FF6BE6" onchange="onColorChanged(this.value)">
+                <button id="colorpicker" data-jscolor="{onInput:'onColorChanged(this.channels)', onChange:'onColorChanged(this.channels)', preset:'large dark', value:'FF6BE6', previewSize:40}" class="jscolor" type="button"></button>
             </div>
         </div>
         <div>

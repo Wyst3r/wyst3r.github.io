@@ -259,6 +259,8 @@ function updateKeys() {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 }
 
+var aspectRatio = (gl.canvas.width / gl.canvas.height);
+
 function resize(gl) {
     var devicePixelRatio = window.devicePixelRatio;
   
@@ -267,29 +269,31 @@ function resize(gl) {
   
     if ((gl.canvas.width  !== displayWidth) ||
         (gl.canvas.height !== displayHeight)) {
-      gl.canvas.width  = displayWidth;
-      gl.canvas.height = displayHeight;
+        gl.canvas.width = displayWidth;
+        gl.canvas.height = displayHeight;
+        
+        aspectRatio = (gl.canvas.width / gl.canvas.height);
 
-      gl.deleteTexture(notes_tex);
-      gl.deleteTexture(final_tex);
-      gl.deleteTexture(read_tex);
-      gl.deleteTexture(write_tex);
-      gl.deleteFramebuffer(notes_fb);
-      gl.deleteFramebuffer(final_fb);
-      gl.deleteFramebuffer(read_fb);
-      gl.deleteFramebuffer(write_fb);
+        gl.deleteTexture(notes_tex);
+        gl.deleteTexture(final_tex);
+        gl.deleteTexture(read_tex);
+        gl.deleteTexture(write_tex);
+        gl.deleteFramebuffer(notes_fb);
+        gl.deleteFramebuffer(final_fb);
+        gl.deleteFramebuffer(read_fb);
+        gl.deleteFramebuffer(write_fb);
 
-      notes_tex = createTexture(displayWidth, displayHeight);
-      notes_fb = createFramebuffer(notes_tex);
+        notes_tex = createTexture(displayWidth, displayHeight);
+        notes_fb = createFramebuffer(notes_tex);
 
-      final_tex = createTexture(displayWidth, displayHeight);
-      final_fb = createFramebuffer(final_tex);
+        final_tex = createTexture(displayWidth, displayHeight);
+        final_fb = createFramebuffer(final_tex);
 
-      read_tex = createTexture(displayWidth, displayHeight);
-      read_fb = createFramebuffer(read_tex);
+        read_tex = createTexture(displayWidth, displayHeight);
+        read_fb = createFramebuffer(read_tex);
 
-      write_tex = createTexture(displayWidth, displayHeight);
-      write_fb = createFramebuffer(write_tex);
+        write_tex = createTexture(displayWidth, displayHeight);
+        write_fb = createFramebuffer(write_tex);
     }
 }
 
@@ -523,6 +527,8 @@ function onDraw(currentTime) {
     }
 
     resize(gl);
+
+    updateTimeline();
     updateNotes();
     updateKeys();
     
@@ -549,16 +555,6 @@ function onDraw(currentTime) {
     gl.enableVertexAttribArray(default_color);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, notes_ib);
     gl.drawElements(gl.TRIANGLES, notes_indices.length, gl.UNSIGNED_SHORT, 0);
-
-    gl.useProgram(default_program);
-    gl.bindBuffer(gl.ARRAY_BUFFER, timeline_vb);
-    gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
-    gl.enableVertexAttribArray(default_position);
-    gl.bindBuffer(gl.ARRAY_BUFFER, timeline_cb);
-    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(default_color);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, timeline_ib);
-    gl.drawElements(gl.TRIANGLES, timeline_indices.length, gl.UNSIGNED_SHORT, 0);
 
     // gl.bindFramebuffer(gl.FRAMEBUFFER, write_fb);
     // gl.clear(gl.COLOR_BUFFER_BIT);
@@ -659,6 +655,16 @@ function onDraw(currentTime) {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, notes_tex);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    gl.useProgram(default_program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, timeline_vb);
+    gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
+    gl.enableVertexAttribArray(default_position);
+    gl.bindBuffer(gl.ARRAY_BUFFER, timeline_cb);
+    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(default_color);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, timeline_ib);
+    gl.drawElements(gl.TRIANGLES, timeline_indices.length, gl.UNSIGNED_SHORT, 0);
 
     gl.useProgram(default_program);
     gl.bindBuffer(gl.ARRAY_BUFFER, white_key_vb);
@@ -805,6 +811,7 @@ var currentTouches = new Map();
 function onTouchStart(event) {
     event.preventDefault();    
     for (var touch of event.changedTouches) {
+        //checkTimelinePressed(touch.identifier, touch);
         checkKeyPressed(touch.identifier, touch);
         currentTouches.set(touch.identifier, touch);
     }
@@ -832,6 +839,17 @@ function onTouchMove(event) {
 function onTouchCancel(event) {
     onTouchEnd(event);
 }
+
+// If you start on the timeline ->
+    // If you start on the thumb ->
+        // Drag it until we go outside timeline
+    // Else
+        // Set thumb on release (if inside timeline)
+// Else
+    // Do nothing
+// function checkTimelinePressed() {
+//     if ()
+// }
 
 var idToKeyMap = new Map();
 
@@ -924,7 +942,7 @@ function onSendNotes() {
 var isPlaying = false;
 
 function onPlay() {
-    if (isPlaying) {
+    if (isPlaying || song_length == 0) {
         return;
     }
     isPlaying = true;
@@ -1054,45 +1072,46 @@ function loadMidi(midi) {
             }
         }
     }
-
-    updateTimeline();
 }
 
 var timeline_vertices = [];
 var timeline_colors = [];
 var timeline_indices = [];
 
-var timeline_start_x = 0.8;
-var timeline_start_y = -0.6;
-var timeline_end_x = 1.0;
-var timeline_end_y = 0.6;
-
 function updateTimeline() {
     timeline_vertices = [];
     timeline_colors = [];
     timeline_indices = [];
 
-    var total_width = (timeline_end_x - timeline_start_x);
-    var total_height = (timeline_end_y - timeline_start_y);
-    var units_per_tick = (total_height / song_length);
+    var start_x = -0.9;
+    var start_y = 0.84;
+    var end_x = 0.9;
+    var end_y = start_y + 0.0075;
+    var percentage = 0.0;
 
-    for (var note of notes_sorted) {
-        var start_x = (timeline_start_x + ((0.5 + (0.5 * key_start_x[note.key])) * total_width));
-        var start_y = (timeline_start_y + (units_per_tick * note.start));
-        var end_x = (timeline_start_x + ((0.5 + (0.5 * key_start_x[note.key])) * total_width)) + 0.002;
-        var end_y = (timeline_start_y + (units_per_tick * note.end)) + 0.002;
-
-        createRectangle(timeline_vertices, timeline_colors, timeline_indices, start_x, start_y, end_x, end_y, notes_r, notes_g, notes_b);
+    if (song_length > 0) {
+        percentage = Math.min((millisecondsToTicks(time) / song_length), 1.0);
     }
 
+    var units_per_pixel_x = (2.0 / gl.canvas.width);
+    var units_per_pixel_y = (2.0 / gl.canvas.height);
+    var radius = ((end_y - start_y) / 2.0);
+    var thumb_x = (start_x + ((end_x - start_x) * percentage));
+    var thumb_y = ((end_y + start_y) / 2.0);
+    var thumb_radius = 0.02;
+
+    createRoundedRectangle(timeline_vertices, timeline_colors, timeline_indices, start_x, start_y, end_x, end_y, radius, 1.0, 1.0, 1.0);
+    createRoundedRectangle(timeline_vertices, timeline_colors, timeline_indices, thumb_x, start_y, end_x, end_y, radius, 0.2, 0.2, 0.2);
+    createCircle(timeline_vertices, timeline_colors, timeline_indices, thumb_x, thumb_y, thumb_radius, 1.0, 1.0, 1.0);
+
     gl.bindBuffer(gl.ARRAY_BUFFER, timeline_vb);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(timeline_vertices), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(timeline_vertices), gl.DYNAMIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     gl.bindBuffer(gl.ARRAY_BUFFER, timeline_cb);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(timeline_colors), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(timeline_colors), gl.DYNAMIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, timeline_ib);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(timeline_indices), gl.STATIC_DRAW);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(timeline_indices), gl.DYNAMIC_DRAW);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 }
 
@@ -1114,21 +1133,17 @@ function millisecondsToTicks(milliseconds) {
     return (milliseconds / (60000.0 / (tempo * ticks_per_beat)));
 }
 
-document.getElementById('notes-color').value
-
 var notes_r = 0.0;
 var notes_g = 0.0;
 var notes_b = 0.0;
 
-onColorChanged(document.getElementById('notes-color').value);
-
 function onColorChanged(color) {
-    var collen=(color.length-1)/3;
-    var fact=[17,1,0.062272][collen-1];
-    notes_r = (Math.round(parseInt(color.substr(1,collen),16)*fact) / 256.0);
-    notes_g = (Math.round(parseInt(color.substr(1+collen,collen),16)*fact) / 256.0);
-    notes_b = (Math.round(parseInt(color.substr(1+2*collen,collen),16)*fact) / 256.0);
+    notes_r = (color.r / 255.0);
+    notes_g = (color.g / 255.0);
+    notes_b = (color.b / 255.0);
 }
+
+jscolor.trigger('change');
 
 // can we cache note start index somehow to avoid searching whole list? like first note that actually is shown
 function updateNotes() {
@@ -1166,11 +1181,9 @@ function updateNotes() {
         var start_y = (-1.0 + white_key_height + (units_per_tick * start_time));
         var end_x = key_end_x[note.key];
         var end_y = (-1.0 + white_key_height + (units_per_tick * end_time));
+        var radius = 0.02;
 
-        var radius_x = (white_key_width * 0.28);
-        var radius_y = (radius_x * (gl.canvas.width / gl.canvas.height));
-
-        createRoundedRectangle(notes_vertices, notes_colors, notes_indices, start_x, start_y, end_x, end_y, radius_x, radius_y, notes_r, notes_g, notes_b);
+        createRoundedRectangle(notes_vertices, notes_colors, notes_indices, start_x, start_y, end_x, end_y, radius, notes_r, notes_g, notes_b);
     }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, notes_vb);
@@ -1184,6 +1197,35 @@ function updateNotes() {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 }
 
+function createLine(vertices, colors, indices, start_x, start_y, end_x, end_y, color_r, color_g, color_b) {
+    var index_start = (vertices.length / 2);
+    vertices.push(start_x, start_y, end_x, end_y);
+    colors.push(color_r, color_g, color_b, color_r, color_g, color_b);
+    indices.push((index_start + 0), (index_start + 1));
+}
+
+function createCircle(vertices, colors, indices, center_x, center_y, radius, color_r, color_g, color_b) {
+    radius_y = radius;
+    radius_x = radius_y / aspectRatio;
+    var index_start = (vertices.length / 2);
+    var divisions = 30;
+    vertices.push(center_x, center_y);
+    colors.push(color_r, color_g, color_b);
+    var angle = 0.0;
+    for (var i = 0; i < divisions; i++) {
+        var x = (center_x + (Math.cos(angle) * radius_x));
+        var y = (center_y + (Math.sin(angle) * radius_y));
+        vertices.push(x, y);
+        colors.push(color_r, color_g, color_b);
+        indices.push((index_start + 0), (index_start + i + 1), (index_start + i + 2));
+        angle += ((2 * Math.PI) / divisions);
+    }
+    var x = (center_x + (Math.cos(angle) * radius_x));
+    var y = (center_y + (Math.sin(angle) * radius_y));
+    vertices.push(x, y);
+    colors.push(color_r, color_g, color_b);
+}
+
 function createRectangle(vertices, colors, indices, start_x, start_y, end_x, end_y, color_r, color_g, color_b) {
     var index_start = (vertices.length / 2);
     vertices.push(start_x, start_y, start_x, end_y, end_x, end_y, end_x, start_y);
@@ -1191,9 +1233,13 @@ function createRectangle(vertices, colors, indices, start_x, start_y, end_x, end
     indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 0), (index_start + 2), (index_start + 3));
 }
 
-function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end_x, end_y, radius_x, radius_y, color_r, color_g, color_b) {
-    var length_x = (end_x - start_x);
-    var length_y = (end_y - start_y);
+function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end_x, end_y, radius, color_r, color_g, color_b) {
+    var radius_max_x = ((end_x - start_x) / 2.0);
+    var radius_max_y = ((end_y - start_y) / 2.0);
+    var radius_y = Math.min(radius, radius_max_y);
+    var radius_x = Math.min((radius_y / aspectRatio), radius_max_x);
+    radius_y = (radius_x * aspectRatio);
+
     var divisions = 15;
     var vertices_per_corner = (divisions + 2);
     var index_start = (vertices.length / 2);
@@ -1252,7 +1298,7 @@ function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end
     var index_2 = (index_start + (2 * vertices_per_corner));
     var index_3 = (index_start + (3 * vertices_per_corner));
 
-    notes_indices.push(index_0, index_1, index_2, index_0, index_2, index_3);
+    indices.push(index_0, index_1, index_2, index_0, index_2, index_3);
 }
 
 
