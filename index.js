@@ -787,18 +787,21 @@ canvas.addEventListener('touchcancel', onTouchCancel);
 var isMouseDown = false;
 
 function onMouseDown(event) {
+    checkTimelinePressed('mouse', event);
     checkKeyPressed('mouse', event);
     isMouseDown = true;
 }
 
 function onMouseMove(event) {
     if (isMouseDown) {
+        checkTimelineDragged('mouse', event);
         checkKeyPressed('mouse', event);
     }
 }
 
 function onMouseUp(event) {
     isMouseDown = false;
+    checkTimelineReleased('mouse', event);
     checkKeyReleased('mouse');
 }
 
@@ -811,7 +814,7 @@ var currentTouches = new Map();
 function onTouchStart(event) {
     event.preventDefault();    
     for (var touch of event.changedTouches) {
-        //checkTimelinePressed(touch.identifier, touch);
+        checkTimelinePressed(touch.identifier, touch);
         checkKeyPressed(touch.identifier, touch);
         currentTouches.set(touch.identifier, touch);
     }
@@ -821,6 +824,7 @@ function onTouchEnd(event) {
     event.preventDefault();
     for (var touch of event.changedTouches) {
         if (currentTouches.has(touch.identifier)) {
+            checkTimelineReleased(touch.identifier, touch);
             checkKeyReleased(touch.identifier);
             currentTouches.delete(touch.identifier);
         }
@@ -831,6 +835,7 @@ function onTouchMove(event) {
     event.preventDefault();
     for (var touch of event.changedTouches) {
         if (currentTouches.has(touch.identifier)) {
+            checkTimelineDragged(touch.identifier, touch);
             checkKeyPressed(touch.identifier, touch);
         }
     }
@@ -840,16 +845,83 @@ function onTouchCancel(event) {
     onTouchEnd(event);
 }
 
-// If you start on the timeline ->
-    // If you start on the thumb ->
-        // Drag it until we go outside timeline
-    // Else
-        // Set thumb on release (if inside timeline)
-// Else
-    // Do nothing
-// function checkTimelinePressed() {
-//     if ()
-// }
+var timeline_captured_id = null;
+var timeline_captured_thumb = false;
+var timeline_was_playing = false;
+
+function setTimelineThumb(x) {
+    var percentage = Math.max(Math.min(((x - timeline_start_x) / (timeline_end_x - timeline_start_x)), 1.0), 0.0);
+    seek(ticksToMilliseconds(percentage * song_length));
+}
+
+function checkTimelinePressed(id, event) {
+    if (song_length == 0) {
+        return;
+    }
+
+    if (timeline_captured_id && (id != timeline_captured_id)) {
+        return;
+    }
+
+    var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
+    var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
+
+    var diff_x = (x - timeline_thumb_x);
+    var diff_y = (y - timeline_thumb_y);
+
+    if (Math.sqrt((diff_x * diff_x) + (diff_y * diff_y)) <= (timeline_thumb_radius * 1.5)) {
+        timeline_captured_id = id;
+        timeline_captured_thumb = true;
+        timeline_was_playing = isPlaying;
+        onPause();
+    } else if ((x >= timeline_start_x && x <= timeline_end_x) &&
+               (y >= (timeline_thumb_y - timeline_thumb_radius) && y <= (timeline_thumb_y + timeline_thumb_radius))) {
+        timeline_captured_id = id;
+    }
+    else {
+        return;
+    }
+}
+
+function checkTimelineDragged(id, event) {
+    if (id != timeline_captured_id) {
+        return;
+    }
+
+    var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
+    var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
+
+    if (timeline_captured_thumb) {
+        setTimelineThumb(x);
+    } else {
+        timeline_captured_id = null;
+        timeline_captured_thumb = false;
+        timeline_was_playing = false;
+    }
+}
+
+function checkTimelineReleased(id, event) {
+    if (id != timeline_captured_id) {
+        return;
+    }
+
+    var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
+    var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
+
+    if (timeline_captured_thumb ||
+        ((x >= timeline_start_x && x <= timeline_end_x) &&
+        (y >= (timeline_thumb_y - timeline_thumb_radius) && y <= (timeline_thumb_y + timeline_thumb_radius)))) {
+        setTimelineThumb(x);
+    }
+
+    if (timeline_was_playing) {
+        onPlay();
+    }
+    
+    timeline_captured_id = null;
+    timeline_captured_thumb = false;
+    timeline_was_playing = false;
+}
 
 var idToKeyMap = new Map();
 
@@ -937,6 +1009,52 @@ function onSendNotes() {
         }
         notesSent++;
     }
+}
+
+function seek(newtime) {
+    if (newtime == time) {
+        return;
+    }
+    var diff = (newtime - time);
+    if (diff < 0.0) {
+        if (-diff > (newtime * 0.5)) {
+            // Forwards from beginning
+            for (var i = 0; i < notesSent; i++) {
+                if (notes_sorted[i].start >= millisecondsToTicks(newtime)) {
+                    notesSent = i;
+                    break;
+                }
+            }
+        } else {
+            // Backwards from current
+            for (var i = Math.min(notesSent, (notes_sorted.length - 1)); i >= 0; i--) {
+                if (notes_sorted[i].start <= millisecondsToTicks(newtime)) {
+                    notesSent = (i + 1);
+                    break;
+                }
+            }
+        }
+    } else {
+        if (diff > ((ticksToMilliseconds(song_length) - time) * 0.5)) {
+            // Backwards from end
+            for (var i = (notes_sorted.length - 1); i >= notesSent; i--) {
+                if (notes_sorted[i].start <= millisecondsToTicks(newtime)) {
+                    notesSent = (i + 1);
+                    break;
+                }
+            }
+        } else {
+            // Forwards from current
+            for (var i = notesSent; i < notes_sorted.length; i++) {
+                if (notes_sorted[i].start >= millisecondsToTicks(newtime)) {
+                    notesSent = i;
+                    break;
+                }
+            }
+        }
+    }
+    time = newtime;
+    offset = (window.performance.now() - time);
 }
 
 var isPlaying = false;
@@ -1078,15 +1196,20 @@ var timeline_vertices = [];
 var timeline_colors = [];
 var timeline_indices = [];
 
+var timeline_start_x = -0.9;
+var timeline_start_y = 0.84;
+var timeline_end_x = 0.9;
+var timeline_end_y = (timeline_start_y + 0.0075);
+
+var timeline_thumb_x = timeline_start_x;
+var timeline_thumb_y = ((timeline_end_y + timeline_start_y) / 2.0);
+var timeline_thumb_radius = 0.02;
+
 function updateTimeline() {
     timeline_vertices = [];
     timeline_colors = [];
     timeline_indices = [];
 
-    var start_x = -0.9;
-    var start_y = 0.84;
-    var end_x = 0.9;
-    var end_y = start_y + 0.0075;
     var percentage = 0.0;
 
     if (song_length > 0) {
@@ -1095,14 +1218,13 @@ function updateTimeline() {
 
     var units_per_pixel_x = (2.0 / gl.canvas.width);
     var units_per_pixel_y = (2.0 / gl.canvas.height);
-    var radius = ((end_y - start_y) / 2.0);
-    var thumb_x = (start_x + ((end_x - start_x) * percentage));
-    var thumb_y = ((end_y + start_y) / 2.0);
-    var thumb_radius = 0.02;
+    var radius = ((timeline_end_y - timeline_start_y) / 2.0);
+    timeline_thumb_x = (timeline_start_x + ((timeline_end_x - timeline_start_x) * percentage));
+    timeline_thumb_y = ((timeline_end_y + timeline_start_y) / 2.0);
 
-    createRoundedRectangle(timeline_vertices, timeline_colors, timeline_indices, start_x, start_y, end_x, end_y, radius, 1.0, 1.0, 1.0);
-    createRoundedRectangle(timeline_vertices, timeline_colors, timeline_indices, thumb_x, start_y, end_x, end_y, radius, 0.2, 0.2, 0.2);
-    createCircle(timeline_vertices, timeline_colors, timeline_indices, thumb_x, thumb_y, thumb_radius, 1.0, 1.0, 1.0);
+    createRoundedRectangle(timeline_vertices, timeline_colors, timeline_indices, timeline_start_x, timeline_start_y, timeline_end_x, timeline_end_y, radius, 1.0, 1.0, 1.0);
+    createRoundedRectangle(timeline_vertices, timeline_colors, timeline_indices, timeline_thumb_x, timeline_start_y, timeline_end_x, timeline_end_y, radius, 0.2, 0.2, 0.2);
+    createCircle(timeline_vertices, timeline_colors, timeline_indices, timeline_thumb_x, timeline_thumb_y, timeline_thumb_radius, 1.0, 1.0, 1.0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, timeline_vb);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(timeline_vertices), gl.DYNAMIC_DRAW);
