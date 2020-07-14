@@ -412,14 +412,16 @@ var texture_fs_src =
    'precision lowp float;' +
    'varying vec2 vTexcoord;' +
    'uniform sampler2D texture;' +
+   'uniform vec2 resolution;' +
    'void main(void) {' +
-        'gl_FragColor = vec4(texture2D(texture, vTexcoord).rgb * smoothstep(0.92, 0.7, vTexcoord.y), 1.0);' +
+        'gl_FragColor = vec4(texture2D(texture, vTexcoord).rgb * smoothstep(90.0, 400.0, (resolution.y * (1.0 - vTexcoord.y))), 1.0);' +
    '}';
 
 
 var texture_program = createProgram(texture_vs_src, texture_fs_src);
 var texture_position = gl.getAttribLocation(texture_program, "position");
 var texture_texture = gl.getUniformLocation(texture_program, "texture");
+var texture_resolution = gl.getUniformLocation(texture_program, "resolution");
 
 // var blur_fs_src = 
 //     'precision lowp float;' +
@@ -649,6 +651,7 @@ function onDraw(currentTime) {
 
     gl.useProgram(texture_program);
     gl.uniform1i(texture_texture, 0);
+    gl.uniform2f(texture_resolution, gl.canvas.width, gl.canvas.height);
     gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
     gl.vertexAttribPointer(texture_position, 2, gl.FLOAT, true, 0, 0);
     gl.enableVertexAttribArray(texture_position);
@@ -846,10 +849,10 @@ function onTouchCancel(event) {
 }
 
 var timeline_captured_id = null;
-var timeline_captured_thumb = false;
 var timeline_was_playing = false;
+var timeline_leeway = 2.0;
 
-function setTimelineThumb(x) {
+function setTimelineThumbX(x) {
     var percentage = Math.max(Math.min(((x - timeline_start_x) / (timeline_end_x - timeline_start_x)), 1.0), 0.0);
     seek(ticksToMilliseconds(percentage * song_length));
 }
@@ -866,20 +869,17 @@ function checkTimelinePressed(id, event) {
     var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
     var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
 
-    var diff_x = (x - timeline_thumb_x);
-    var diff_y = (y - timeline_thumb_y);
-
-    if (Math.sqrt((diff_x * diff_x) + (diff_y * diff_y)) <= (timeline_thumb_radius * 1.5)) {
+    var start_x = timeline_start_x;
+    var start_y = (timeline_thumb_y - (timeline_thumb_radius * timeline_leeway));
+    var end_x = timeline_end_x;
+    var end_y = (timeline_thumb_y + (timeline_thumb_radius * timeline_leeway));
+    
+    if ((x >= start_x && x <= end_x) &&
+        (y >= start_y && y <= end_y)) {
         timeline_captured_id = id;
-        timeline_captured_thumb = true;
         timeline_was_playing = isPlaying;
         onPause();
-    } else if ((x >= timeline_start_x && x <= timeline_end_x) &&
-               (y >= (timeline_thumb_y - timeline_thumb_radius) && y <= (timeline_thumb_y + timeline_thumb_radius))) {
-        timeline_captured_id = id;
-    }
-    else {
-        return;
+        setTimelineThumbX(x);
     }
 }
 
@@ -891,13 +891,7 @@ function checkTimelineDragged(id, event) {
     var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
     var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
 
-    if (timeline_captured_thumb) {
-        setTimelineThumb(x);
-    } else {
-        timeline_captured_id = null;
-        timeline_captured_thumb = false;
-        timeline_was_playing = false;
-    }
+    setTimelineThumbX(x);
 }
 
 function checkTimelineReleased(id, event) {
@@ -908,18 +902,13 @@ function checkTimelineReleased(id, event) {
     var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
     var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
 
-    if (timeline_captured_thumb ||
-        ((x >= timeline_start_x && x <= timeline_end_x) &&
-        (y >= (timeline_thumb_y - timeline_thumb_radius) && y <= (timeline_thumb_y + timeline_thumb_radius)))) {
-        setTimelineThumb(x);
-    }
+    setTimelineThumbX(x);
 
     if (timeline_was_playing) {
         onPlay();
     }
     
     timeline_captured_id = null;
-    timeline_captured_thumb = false;
     timeline_was_playing = false;
 }
 
@@ -1192,14 +1181,30 @@ function loadMidi(midi) {
     }
 }
 
+function unitsToPixelsX(units) {
+    return (units * (gl.canvas.width / 2.0));
+}
+
+function unitsToPixelsY(units) {
+    return (units * (gl.canvas.height / 2.0));
+}
+
+function pixelsToUnitsX(pixels) {
+    return (pixels * (2.0 / gl.canvas.width));
+}
+
+function pixelsToUnitsY(pixels) {
+    return (pixels * (2.0 / gl.canvas.height)); 
+}
+
 var timeline_vertices = [];
 var timeline_colors = [];
 var timeline_indices = [];
 
-var timeline_start_x = -0.9;
-var timeline_start_y = 0.84;
-var timeline_end_x = 0.9;
-var timeline_end_y = (timeline_start_y + 0.0075);
+var timeline_start_x = 30;
+var timeline_start_y = 75;
+var timeline_end_x = 30;
+var timeline_end_y = 70;
 
 var timeline_thumb_x = timeline_start_x;
 var timeline_thumb_y = ((timeline_end_y + timeline_start_y) / 2.0);
@@ -1216,11 +1221,14 @@ function updateTimeline() {
         percentage = Math.min((millisecondsToTicks(time) / song_length), 1.0);
     }
 
-    var units_per_pixel_x = (2.0 / gl.canvas.width);
-    var units_per_pixel_y = (2.0 / gl.canvas.height);
+    timeline_start_x = -0.9;
+    timeline_start_y = (1.0 - pixelsToUnitsY(87));
+    timeline_end_x = 0.9;
+    timeline_end_y = (1.0 - pixelsToUnitsY(84));
     var radius = ((timeline_end_y - timeline_start_y) / 2.0);
     timeline_thumb_x = (timeline_start_x + ((timeline_end_x - timeline_start_x) * percentage));
     timeline_thumb_y = ((timeline_end_y + timeline_start_y) / 2.0);
+    timeline_thumb_radius = pixelsToUnitsY(8);
 
     createRoundedRectangle(timeline_vertices, timeline_colors, timeline_indices, timeline_start_x, timeline_start_y, timeline_end_x, timeline_end_y, radius, 1.0, 1.0, 1.0);
     createRoundedRectangle(timeline_vertices, timeline_colors, timeline_indices, timeline_thumb_x, timeline_start_y, timeline_end_x, timeline_end_y, radius, 0.2, 0.2, 0.2);
