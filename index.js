@@ -409,7 +409,7 @@ var texture_vs_src =
    '}';
 
 var texture_fs_src =
-   'precision lowp float;' +
+   'precision mediump float;' +
    'varying vec2 vTexcoord;' +
    'uniform sampler2D texture;' +
    'uniform vec2 resolution;' +
