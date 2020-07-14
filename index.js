@@ -651,7 +651,7 @@ function onDraw(currentTime) {
 
     gl.useProgram(texture_program);
     gl.uniform1i(texture_texture, 0);
-    gl.uniform2f(texture_resolution, gl.canvas.width, gl.canvas.height);
+    gl.uniform2f(texture_resolution, (gl.canvas.width / window.devicePixelRatio), (gl.canvas.height / window.devicePixelRatio));
     gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
     gl.vertexAttribPointer(texture_position, 2, gl.FLOAT, true, 0, 0);
     gl.enableVertexAttribArray(texture_position);
@@ -1181,20 +1181,21 @@ function loadMidi(midi) {
     }
 }
 
+// CSS pixels
 function unitsToPixelsX(units) {
-    return (units * (gl.canvas.width / 2.0));
+    return (units * (gl.canvas.width / 2.0) * (1.0 / window.devicePixelRatio));
 }
 
 function unitsToPixelsY(units) {
-    return (units * (gl.canvas.height / 2.0));
+    return (units * (gl.canvas.height / 2.0) * (1.0 / window.devicePixelRatio));
 }
 
 function pixelsToUnitsX(pixels) {
-    return (pixels * (2.0 / gl.canvas.width));
+    return (pixels * window.devicePixelRatio * (2.0 / gl.canvas.width));
 }
 
 function pixelsToUnitsY(pixels) {
-    return (pixels * (2.0 / gl.canvas.height)); 
+    return (pixels * window.devicePixelRatio * (2.0 / gl.canvas.height));
 }
 
 var timeline_vertices = [];
@@ -1222,9 +1223,9 @@ function updateTimeline() {
     }
 
     timeline_start_x = -0.9;
-    timeline_start_y = (1.0 - pixelsToUnitsY(87));
+    timeline_start_y = (1.0 - pixelsToUnitsY(93));
     timeline_end_x = 0.9;
-    timeline_end_y = (1.0 - pixelsToUnitsY(84));
+    timeline_end_y = (1.0 - pixelsToUnitsY(90));
     var radius = ((timeline_end_y - timeline_start_y) / 2.0);
     timeline_thumb_x = (timeline_start_x + ((timeline_end_x - timeline_start_x) * percentage));
     timeline_thumb_y = ((timeline_end_y + timeline_start_y) / 2.0);
