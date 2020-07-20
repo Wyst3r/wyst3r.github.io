@@ -166,6 +166,16 @@ gl.bindBuffer(gl.ARRAY_BUFFER, octaves_cb);
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(octaves_colors), gl.STATIC_DRAW);
 gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
+var measures_vb = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, measures_vb);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(measures_vertices), gl.DYNAMIC_DRAW);
+gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+var measures_cb = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, measures_cb);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(measures_colors), gl.DYNAMIC_DRAW);
+gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
 const texture_vb = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, texture_vb);
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1,  1, -1,  1, 1, -1, 1,  1,]), gl.STATIC_DRAW);
@@ -501,36 +511,48 @@ function swapBuffers() {
     write_tex = temp_tex;
 }
 
-function normpdf(x, sigma)
-{
-	return 0.39894*Math.exp(-0.5*x*x/(sigma*sigma))/sigma;
-}
+class MovingAverage {
+    constructor(period) {
+        this.period = period;
+        this.samples = [];
+    }
 
-var weights = new Float32Array(11);
-var Z = 0.0;
+    add(sample) {
+        this.samples.push(sample);
+        if (this.samples.length > this.period) {
+            this.samples.splice(0, 1);
+        }
+        var sum = 0.0;
+        for (var sample of this.samples) {
+            sum += sample;
+        }
+        return (sum / this.samples.length);
+    }
+};
 
-for (var j = 0; j <= 5; ++j)
-{
-    weights[5+j] = weights[5-j] = normpdf(j, 7.0);
-}
+var framerate_average = new MovingAverage(4);
 
-for (var j = 0; j < 11; ++j)
-{
-    Z += weights[j];
+function updateFramerate(delta_time) {
+    var framerate = (1000.0 / delta_time);
+    document.getElementById('framerate').innerText = Math.round(framerate_average.add(framerate));
 }
 
 requestAnimationFrame(onDraw);
 
-var previousTime = 0.0;
+var previous_time = 0.0;
 
-function onDraw(currentTime) {
+function onDraw(current_time) {
+    var delta_time = (current_time - previous_time);
+
     if (isPlaying) {
-        time += (currentTime - previousTime);
+        current_tick += millisecondsToTicks(delta_time);
     }
 
     resize(gl);
 
+    updateFramerate(delta_time);
     updateTimeline();
+    updateMeasures();
     updateNotes();
     updateKeys();
     
@@ -547,6 +569,15 @@ function onDraw(currentTime) {
     gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(default_color);
     gl.drawArrays(gl.LINES, 0, (octaves_vertices.length / 2));
+
+    gl.useProgram(default_program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, measures_vb);
+    gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
+    gl.enableVertexAttribArray(default_position);
+    gl.bindBuffer(gl.ARRAY_BUFFER, measures_cb);
+    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(default_color);
+    gl.drawArrays(gl.LINES, 0, (measures_vertices.length / 2));
 
     gl.useProgram(default_program);
     gl.bindBuffer(gl.ARRAY_BUFFER, notes_vb);
@@ -703,7 +734,7 @@ function onDraw(currentTime) {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);  
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
     
-    previousTime = currentTime;
+    previous_time = current_time;
 
     requestAnimationFrame(onDraw);
 }
@@ -731,51 +762,135 @@ function onMIDIMessage(message) {
     var command = message.data[0];
     var note = message.data[1];
     var velocity = ((message.data.length > 2) ? message.data[2] : 0);
-    var time = message.timeStamp;
+    var timestamp = message.timeStamp;
 
     switch (command) {
         case 144:
             if (velocity > 0) {
-                onNoteOn(note, time);
+                onNoteOn(note, timestamp);
             } else {
-                onNoteOff(note, time);
+                onNoteOff(note, timestamp);
             }
             break;
         case 152:
             if (note == 34) {
-                onMetronomeMeasure(time);
+                onMetronomeMeasure(timestamp);
             } else if (note == 33) {
-                onMetronomeBeat(time);
+                onMetronomeBeat(timestamp);
             }
         case 128:
-            onNoteOff(note, time);
+            onNoteOff(note, timestamp);
             break;
     }
 }
 
-var tempo = 60; // TODO: Set to 0
-var prev_measure_start = null;
+var tempo = 0;
+var previous_beat_timestamp = null;
+var previous_beat_index = null;
 
-function onNoteOn(note, time) {
+function onNoteOn(note, timestamp) {
     pianoKeyPressed[note - 21] = true;
 }
 
-function onNoteOff(note, time) {
+function onNoteOff(note, timestamp) {
     pianoKeyPressed[note - 21] = false;
 }
 
-function onMetronomeMeasure(time) {
-    if (prev_measure_start != null) {
-        tempo = Math.floor((60 * 1000) / ((time - prev_measure_start) / 4));
-
-        document.getElementById('tempo').innerText = tempo;
-    }
-
-    prev_measure_start = time;
+function onMetronomeMeasure(timestamp) {
+    previous_beat_index = -1;
+    onMetronomeBeat(timestamp);
 }
 
-function onMetronomeBeat(time) {
+function onMetronomeBeat(timestamp) {
+    if (previous_beat_timestamp != null) {
+        reportTempo(60000.0 / (timestamp - previous_beat_timestamp));
+    }
 
+    previous_beat_timestamp = timestamp;
+
+    if (previous_beat_index != null) {
+        previous_beat_index++;
+        updateSync();
+    }
+}
+
+var beats_per_measure = 4;
+
+function updateSync() {
+    if (!isPlaying) {
+        document.getElementById('sync').innerText = '-';
+        return;
+    }
+    var ticks_per_measure = (beats_per_measure * ticks_per_beat);
+    var ticks_since_previous_measure_song = (current_tick - (ticks_per_measure * Math.floor(current_tick / ticks_per_measure)));
+    var ticks_since_previous_measure_metronome = ((ticks_per_beat * previous_beat_index) + millisecondsToTicks(window.performance.now() - previous_beat_timestamp));
+    var ticks_diff = (ticks_since_previous_measure_song - ticks_since_previous_measure_metronome);
+    if (ticks_diff > (ticks_per_measure / 2)) {
+        ticks_diff = (ticks_per_measure - ticks_diff);
+    } else if (ticks_diff < -(ticks_per_measure / 2)) {
+        ticks_diff = (ticks_per_measure + ticks_diff);
+    }
+    var sync = ticksToMilliseconds(ticks_diff);
+    document.getElementById('sync').innerText = Math.round(sync) + ' ms';
+}
+
+var play_timeout_id = null;
+
+function synchronize() {
+    if (previous_beat_index == null) {
+        return;
+    }    
+    showLoadingScreen('Synchronizing...');
+    var ticks_per_measure = (beats_per_measure * ticks_per_beat);
+    var ticks_since_previous_measure_song = (current_tick - (ticks_per_measure * Math.floor(current_tick / ticks_per_measure)));
+    var ticks_since_previous_measure_metronome = ((ticks_per_beat * previous_beat_index) + millisecondsToTicks(window.performance.now() - previous_beat_timestamp));
+    var timeout = ticksToMilliseconds(ticks_since_previous_measure_song - ticks_since_previous_measure_metronome);
+    if (timeout < 0) {
+        timeout = (ticksToMilliseconds(ticks_per_measure) + timeout);
+    }
+    play_timeout_id = setTimeout(play, timeout);
+}
+
+var tempo_average = new MovingAverage(4);
+
+function updateTempo(new_tempo) {
+    tempo = new_tempo;
+
+    if (song_tempo == 0 || tempo == song_tempo) {
+        document.getElementById('tempo').innerText = tempo + (tempo_stable ? '' : '?');
+    } else if (tempo < song_tempo) {
+        document.getElementById('tempo').innerText = tempo + (tempo_stable ? '' : '?') + ' (-' + (song_tempo - tempo) + ')';
+    } else {
+        document.getElementById('tempo').innerText = tempo + (tempo_stable ? '' : '?') + ' (+' + (tempo - song_tempo) + ')';
+    }
+}
+
+var tempo_stable = true;
+var tempo_stable_count = 0;
+
+function reportTempo(new_tempo) {
+    new_tempo = Math.round(tempo_average.add(new_tempo));
+    if (new_tempo != tempo) {
+        if (tempo_stable) {
+            tempo_stable = false;
+            forcePause();
+            showLoadingScreen('Detecting tempo...');
+        }
+        tempo_stable_count = 0;
+        updateTempo(new_tempo);
+    } else if (!tempo_stable) {
+        tempo_stable_count++;
+        if (tempo_stable_count >= 3) {
+            tempo_stable = true;
+            updateTempo(tempo);
+            hideLoadingScreen();
+            unforcePause();
+        }
+    }
+}
+
+function updateOffset() {
+    offset = (window.performance.now() - ticksToMilliseconds(current_tick));
 }
 
 canvas.addEventListener('mousedown', onMouseDown);
@@ -849,12 +964,11 @@ function onTouchCancel(event) {
 }
 
 var timeline_captured_id = null;
-var timeline_was_playing = false;
 var timeline_leeway = 2.0;
 
 function setTimelineThumbX(x) {
     var percentage = Math.max(Math.min(((x - timeline_start_x) / (timeline_end_x - timeline_start_x)), 1.0), 0.0);
-    seek(ticksToMilliseconds(percentage * song_length));
+    seek(percentage * song_length);
 }
 
 function checkTimelinePressed(id, event) {
@@ -877,8 +991,7 @@ function checkTimelinePressed(id, event) {
     if ((x >= start_x && x <= end_x) &&
         (y >= start_y && y <= end_y)) {
         timeline_captured_id = id;
-        timeline_was_playing = isPlaying;
-        onPause();
+        forcePause();
         setTimelineThumbX(x);
     }
 }
@@ -903,13 +1016,9 @@ function checkTimelineReleased(id, event) {
     var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
 
     setTimelineThumbX(x);
-
-    if (timeline_was_playing) {
-        onPlay();
-    }
+    unforcePause();
     
     timeline_captured_id = null;
-    timeline_was_playing = false;
 }
 
 var idToKeyMap = new Map();
@@ -980,7 +1089,7 @@ var sendNotesInterval = 50; // in milliseconds
 var notesSent = 0;
 
 function onSendNotes() {
-    var end_tick = millisecondsToTicks(time + (2 * sendNotesInterval));
+    var end_tick = (current_tick + millisecondsToTicks(sendNotesInterval * 2.0));
     while (true) {
         if (!isPlaying) {
             break;
@@ -1000,16 +1109,20 @@ function onSendNotes() {
     }
 }
 
-function seek(newtime) {
-    if (newtime == time) {
+function seek(tick) {
+    if (tick == current_tick) {
         return;
     }
-    var diff = (newtime - time);
+
+    var previous_tick = current_tick;
+    current_tick = tick;
+
+    var diff = (current_tick - previous_tick);
     if (diff < 0.0) {
-        if (-diff > (newtime * 0.5)) {
+        if (-diff > (current_tick / 2.0)) {
             // Forwards from beginning
             for (var i = 0; i < notesSent; i++) {
-                if (notes_sorted[i].start >= millisecondsToTicks(newtime)) {
+                if (notes_sorted[i].start >= current_tick) {
                     notesSent = i;
                     break;
                 }
@@ -1017,17 +1130,17 @@ function seek(newtime) {
         } else {
             // Backwards from current
             for (var i = Math.min(notesSent, (notes_sorted.length - 1)); i >= 0; i--) {
-                if (notes_sorted[i].start <= millisecondsToTicks(newtime)) {
+                if (notes_sorted[i].start <= current_tick) {
                     notesSent = (i + 1);
                     break;
                 }
             }
         }
     } else {
-        if (diff > ((ticksToMilliseconds(song_length) - time) * 0.5)) {
+        if (diff > ((song_length - previous_tick) / 2.0)) {
             // Backwards from end
             for (var i = (notes_sorted.length - 1); i >= notesSent; i--) {
-                if (notes_sorted[i].start <= millisecondsToTicks(newtime)) {
+                if (notes_sorted[i].start <= current_tick) {
                     notesSent = (i + 1);
                     break;
                 }
@@ -1035,37 +1148,75 @@ function seek(newtime) {
         } else {
             // Forwards from current
             for (var i = notesSent; i < notes_sorted.length; i++) {
-                if (notes_sorted[i].start >= millisecondsToTicks(newtime)) {
+                if (notes_sorted[i].start >= current_tick) {
                     notesSent = i;
                     break;
                 }
             }
         }
     }
-    time = newtime;
-    offset = (window.performance.now() - time);
+}
+
+function showLoadingScreen(text) {
+    document.getElementById('loadingtext').innerText = text;    
+    document.getElementById("loadingscreen").style.display = "block";
+}
+
+function hideLoadingScreen() {    
+    document.getElementById('loadingtext').innerText = '';    
+    document.getElementById("loadingscreen").style.display = "none";
+}
+
+var forcedPauseCount = 0;
+
+function forcePause() {
+    if (forcedPauseCount == 0) {
+        wasPlaying = isPlaying;
+        onPause();
+    }
+    forcedPauseCount++;
+}
+
+function unforcePause() {
+    forcedPauseCount--;
+    if (forcedPauseCount == 0) {
+        if (wasPlaying) {
+            onPlay();
+        }
+    }
 }
 
 var isPlaying = false;
+var wasPlaying = false;
 
 function onPlay() {
-    if (isPlaying || song_length == 0) {
+    if (isPlaying || (forcedPauseCount > 0) || (tempo == 0) || (song_length == 0) || (play_timeout_id != null)) {
         return;
     }
+    synchronize();
+}
+
+function play() {
+    hideLoadingScreen();
     isPlaying = true;
-    offset = (window.performance.now() - time);
+    updateOffset();
     onSendNotes();
     setInterval(onSendNotes, sendNotesInterval);
+    play_timeout_id = null;
 }
 
 function onPause() {
     isPlaying = false;
+    if (play_timeout_id != null) {
+        clearTimeout(play_timeout_id);
+        play_timeout_id = null;
+    }
+    clearInterval(onSendNotes);
 }
 
 function onStop() {
-    isPlaying = false;
-    clearInterval(onSendNotes);
-    time = 0.0;
+    onPause();
+    current_tick = 0.0;
     notesSent = 0;
 }
 
@@ -1114,6 +1265,7 @@ function notesLeft(midi, indices) {
 }
 
 var song_length = 0;
+var song_tempo = 0;
 
 function loadMidi(midi) {
     ticks_per_beat = midi.header.ticksPerBeat;
@@ -1125,6 +1277,9 @@ function loadMidi(midi) {
     for (var i = 0; i < notes.length; i++) {
         notes[i] = new Map();
     }
+
+    song_length = 0;
+    song_tempo = 0;
 
     while (notesLeft(midi, indices)) {
         var nextIndex = 0;
@@ -1174,6 +1329,13 @@ function loadMidi(midi) {
                 break;
             }
 
+            case 'setTempo': {
+                if (song_tempo == 0) {
+                    song_tempo = Math.round(60000000.0 / nextEvent.microsecondsPerBeat);
+                    updateTempo(tempo);
+                }
+            }
+
             case 'endOfTrack': {
                 song_length = Math.max(song_length, nextTime);
             }
@@ -1219,7 +1381,7 @@ function updateTimeline() {
     var percentage = 0.0;
 
     if (song_length > 0) {
-        percentage = Math.min((millisecondsToTicks(time) / song_length), 1.0);
+        percentage = Math.min((current_tick / song_length), 1.0);
     }
 
     timeline_start_x = -0.9;
@@ -1253,7 +1415,7 @@ function addNote(key, start, velocity) {
 }
 
 var zoom = 1.0; // in measures
-var time = 0.0; // in milliseconds
+var current_tick = 0.0; // in ticks
 var offset = 0.0; // in milliseconds
 
 function ticksToMilliseconds(ticks) {
@@ -1262,6 +1424,60 @@ function ticksToMilliseconds(ticks) {
 
 function millisecondsToTicks(milliseconds) {
     return (milliseconds / (60000.0 / (tempo * ticks_per_beat)));
+}
+
+var measure_r = 0.6;
+var measure_g = 0.6;
+var measure_b = 0.6;
+
+var beat_r = 0.2;
+var beat_g = 0.2;
+var beat_b = 0.2;
+
+var measures_vertices = [];
+var measures_colors = [];
+
+function updateMeasures() {
+    measures_vertices = [];
+    measures_colors = [];
+
+    var ticks_per_measure = (beats_per_measure * ticks_per_beat);
+    var previous_measure_tick = (ticks_per_measure * Math.floor(current_tick / ticks_per_measure));
+
+    var start_tick = current_tick;
+    var end_tick = (start_tick + (beats_per_measure * ticks_per_beat * zoom) - 1);
+    
+    var total_height = (2.0 - white_key_height);
+    var total_duration = (end_tick - start_tick);
+    var units_per_tick = (total_height / total_duration);
+
+    var beat = 0;
+
+    for (var tick = previous_measure_tick; tick <= end_tick; tick += ticks_per_beat, beat++) {
+        if (tick < start_tick) {
+            continue;
+        }
+
+        var start_x = -1.0;
+        var start_y = (-1.0 + white_key_height + (units_per_tick * (tick - start_tick)));
+        var end_x = 1.0;
+        var end_y = start_y;
+    
+        measures_vertices.push(start_x, start_y, end_x, end_y);
+
+        if (beat % beats_per_measure == 0) {
+            measures_colors.push(measure_r, measure_g, measure_b, measure_r, measure_g, measure_b);
+        } else {
+            measures_colors.push(beat_r, beat_g, beat_b, beat_r, beat_g, beat_b);
+        }
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, measures_vb);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(measures_vertices), gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    gl.bindBuffer(gl.ARRAY_BUFFER, measures_cb);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(measures_colors), gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
 }
 
 var notes_r = 0.0;
@@ -1282,8 +1498,8 @@ function updateNotes() {
     notes_colors = [];
     notes_indices = [];
 
-    var start_tick = millisecondsToTicks(time);
-    var end_tick = (start_tick + (4 * ticks_per_beat * zoom) - 1);
+    var start_tick = current_tick;
+    var end_tick = (start_tick + (beats_per_measure * ticks_per_beat * zoom) - 1);
 
     songKeyPressed.fill(false);
 
