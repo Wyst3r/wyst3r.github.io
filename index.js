@@ -829,9 +829,11 @@ function updateSync() {
         document.getElementById('sync').innerText = '-';
         return;
     }
+    var now = window.performance.now();
+    var song_tick = (current_tick + millisecondsToTicks(now - previous_time));
     var ticks_per_measure = (beats_per_measure * ticks_per_beat);
-    var ticks_since_previous_measure_song = (current_tick - (ticks_per_measure * Math.floor(current_tick / ticks_per_measure)));
-    var ticks_since_previous_measure_metronome = ((ticks_per_beat * previous_beat_index) + millisecondsToTicks(window.performance.now() - previous_beat_timestamp));
+    var ticks_since_previous_measure_song = (song_tick - (ticks_per_measure * Math.floor(song_tick / ticks_per_measure)));
+    var ticks_since_previous_measure_metronome = ((ticks_per_beat * previous_beat_index) + millisecondsToTicks(now - previous_beat_timestamp));
     var ticks_diff = (ticks_since_previous_measure_song - ticks_since_previous_measure_metronome);
     if (ticks_diff > (ticks_per_measure / 2)) {
         ticks_diff = (ticks_per_measure - ticks_diff);
