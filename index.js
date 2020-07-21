@@ -522,6 +522,9 @@ class MovingAverage {
         if (this.samples.length > this.period) {
             this.samples.splice(0, 1);
         }
+    }
+
+    get() {
         var sum = 0.0;
         for (var sample of this.samples) {
             sum += sample;
@@ -530,12 +533,13 @@ class MovingAverage {
     }
 };
 
-var framerate_average = new MovingAverage(4);
+var framerate_average = new MovingAverage(60);
 
-function updateFramerate(delta_time) {
-    var framerate = (1000.0 / delta_time);
-    document.getElementById('framerate').innerText = Math.round(framerate_average.add(framerate));
+function updateFramerate() {
+    document.getElementById('framerate').innerText = Math.round(framerate_average.get());
 }
+
+setInterval(updateFramerate, 1000);
 
 requestAnimationFrame(onDraw);
 
@@ -544,13 +548,17 @@ var previous_time = 0.0;
 function onDraw(current_time) {
     var delta_time = (current_time - previous_time);
 
+    framerate_average.add(1000.0 / delta_time);
+
     if (isPlaying) {
         current_tick += millisecondsToTicks(delta_time);
+        if (current_tick >= song_length) {
+            onPause();
+        }
     }
 
     resize(gl);
 
-    updateFramerate(delta_time);
     updateTimeline();
     updateMeasures();
     updateNotes();
@@ -869,7 +877,8 @@ var tempo_stable = true;
 var tempo_stable_count = 0;
 
 function reportTempo(new_tempo) {
-    new_tempo = Math.round(tempo_average.add(new_tempo));
+    tempo_average.add(new_tempo);
+    new_tempo = Math.round(tempo_average.get());
     if (new_tempo != tempo) {
         if (tempo_stable) {
             tempo_stable = false;
@@ -1190,7 +1199,7 @@ var isPlaying = false;
 var wasPlaying = false;
 
 function onPlay() {
-    if (isPlaying || (forcedPauseCount > 0) || (tempo == 0) || (song_length == 0) || (play_timeout_id != null)) {
+    if (isPlaying || (forcedPauseCount > 0) || (current_tick >= song_length) || (tempo == 0) || (play_timeout_id != null)) {
         return;
     }
     synchronize();
@@ -1492,7 +1501,6 @@ function onColorChanged(color) {
 
 jscolor.trigger('change');
 
-// can we cache note start index somehow to avoid searching whole list? like first note that actually is shown
 function updateNotes() {
     notes_vertices = [];
     notes_colors = [];
@@ -1587,7 +1595,7 @@ function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end
     var radius_x = Math.min((radius_y / aspectRatio), radius_max_x);
     radius_y = (radius_x * aspectRatio);
 
-    var divisions = 15;
+    var divisions = 3;
     var vertices_per_corner = (divisions + 2);
     var index_start = (vertices.length / 2);
 
