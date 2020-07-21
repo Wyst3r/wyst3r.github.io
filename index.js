@@ -829,19 +829,21 @@ function updateSync() {
         document.getElementById('sync').innerText = '-';
         return;
     }
+    var deviation = getMetronomeDeviation();
+    if (deviation > (ticks_per_measure / 2)) {
+        deviation = (ticks_per_measure - deviation);
+    } else if (deviation < -(ticks_per_measure / 2)) {
+        deviation = (ticks_per_measure + deviation);
+    }
+    document.getElementById('sync').innerText = Math.round(ticksToMilliseconds(deviation)) + ' ms';
+}
+
+function getMetronomeDeviation() {
     var now = window.performance.now();
     var song_tick = (current_tick + millisecondsToTicks(now - previous_time));
-    var ticks_per_measure = (beats_per_measure * ticks_per_beat);
     var ticks_since_previous_measure_song = (song_tick - (ticks_per_measure * Math.floor(song_tick / ticks_per_measure)));
     var ticks_since_previous_measure_metronome = ((ticks_per_beat * previous_beat_index) + millisecondsToTicks(now - previous_beat_timestamp));
-    var ticks_diff = (ticks_since_previous_measure_song - ticks_since_previous_measure_metronome);
-    if (ticks_diff > (ticks_per_measure / 2)) {
-        ticks_diff = (ticks_per_measure - ticks_diff);
-    } else if (ticks_diff < -(ticks_per_measure / 2)) {
-        ticks_diff = (ticks_per_measure + ticks_diff);
-    }
-    var sync = ticksToMilliseconds(ticks_diff);
-    document.getElementById('sync').innerText = Math.round(sync) + ' ms';
+    return (ticks_since_previous_measure_song - ticks_since_previous_measure_metronome);
 }
 
 var play_timeout_id = null;
@@ -851,10 +853,7 @@ function synchronize() {
         return;
     }    
     showLoadingScreen('Synchronizing...');
-    var ticks_per_measure = (beats_per_measure * ticks_per_beat);
-    var ticks_since_previous_measure_song = (current_tick - (ticks_per_measure * Math.floor(current_tick / ticks_per_measure)));
-    var ticks_since_previous_measure_metronome = ((ticks_per_beat * previous_beat_index) + millisecondsToTicks(window.performance.now() - previous_beat_timestamp));
-    var timeout = ticksToMilliseconds(ticks_since_previous_measure_song - ticks_since_previous_measure_metronome);
+    var timeout = ticksToMilliseconds(getMetronomeDeviation());
     if (timeout < 0) {
         timeout = (ticksToMilliseconds(ticks_per_measure) + timeout);
     }
@@ -1264,6 +1263,7 @@ var notes_colors = [];
 var notes_indices = [];
 
 var ticks_per_beat = 0;
+var ticks_per_measure = 0;
 
 function notesLeft(midi, indices) {
     for (var i = 0; i < midi.tracks.length; i++) {
@@ -1280,6 +1280,7 @@ var song_tempo = 0;
 
 function loadMidi(midi) {
     ticks_per_beat = midi.header.ticksPerBeat;
+    ticks_per_measure = (beats_per_measure * ticks_per_beat);
     var times = new Array(midi.tracks.length);
     times.fill(0);
     var indices = new Array(midi.tracks.length);
