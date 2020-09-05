@@ -1,5 +1,7 @@
 const canvas = document.getElementById("canvas");
+const overlay = document.getElementById("overlay");
 const gl = canvas.getContext("webgl");
+const ctx = overlay.getContext("2d");
 
 if (gl === null) {
     alert("No WebGL support in your browser");
@@ -55,9 +57,9 @@ for (var key = 0; key < white_key_count; key++)
     const end_y = (-1.0 + white_key_height);
     const index_start = (white_key_vertices.length / 2);
 
-    createRectangle(white_key_vertices, white_key_colors, white_key_indices, start_x, start_y, end_x, end_y, 1.0, 1.0, 1.0);
+    createRectangle(white_key_vertices, white_key_colors, white_key_indices, start_x, start_y, end_x, end_y, 1.0, 1.0, 1.0, 1.0);
 
-    white_key_outline_colors.push(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    white_key_outline_colors.push(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
     white_key_outline_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 3));
 
     key_start_x[white_keys[key]] = start_x;
@@ -78,9 +80,9 @@ for (var key = 0; key < 36; key++) {
     const end_y = (-1.0 + white_key_height);
     const index_start = (black_key_vertices.length / 2);
     
-    createRectangle(black_key_vertices, black_key_colors, black_key_indices, start_x, start_y, end_x, end_y, 0.0, 0.0, 0.0);
+    createRectangle(black_key_vertices, black_key_colors, black_key_indices, start_x, start_y, end_x, end_y, 0.0, 0.0, 0.0, 1.0);
     
-    black_key_outline_colors.push(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+    black_key_outline_colors.push(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0);
     black_key_outline_indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 3));
     
     black_key_offset += ((black_key_offsets[(key + 4) % 5] * white_key_width) + black_key_width);
@@ -92,6 +94,7 @@ for (var key = 0; key < 36; key++) {
 var octave_r = 0.3;
 var octave_g = 0.3;
 var octave_b = 0.3;
+var octave_a = 1.0;
 
 var octaves_vertices = [];
 var octaves_colors = [];
@@ -103,7 +106,7 @@ for (var i = 0; i < 8; i++) {
     var end_y = 1.0;
 
     octaves_vertices.push(start_x, start_y, end_x, end_y);
-    octaves_colors.push(octave_r, octave_g, octave_b, octave_r, octave_g, octave_b);
+    octaves_colors.push(octave_r, octave_g, octave_b, octave_a, octave_r, octave_g, octave_b, octave_a);
 }
 
 var white_key_vb = gl.createBuffer();
@@ -191,8 +194,8 @@ var timeline_ib = gl.createBuffer();
 
 var default_vs_src =
    'attribute vec2 position;' +
-   'attribute vec3 color;' +
-   'varying vec3 vColor;' +
+   'attribute vec4 color;' +
+   'varying vec4 vColor;' +
    'void main(void) {' +
         'gl_Position = vec4(position, 0.0, 1.0);' +
         'vColor = color;' +
@@ -200,24 +203,45 @@ var default_vs_src =
 
 var default_fs_src =
    'precision lowp float;' +
-   'varying vec3 vColor;' +
+   'varying vec4 vColor;' +
    'void main(void) {' +
-        'gl_FragColor = vec4(vColor, 1);' +
+        'gl_FragColor = vColor;' +
    '}';
 
 var default_program = createProgram(default_vs_src, default_fs_src);
 var default_position = gl.getAttribLocation(default_program, "position");
 var default_color = gl.getAttribLocation(default_program, "color");
 
-var songKeyPressed = [];
-var pianoKeyPressed = [];
-var mouseKeyPressed = [];
+var key_count = (white_key_count + black_key_count);
 
-for (var key = 0; key < (white_key_count + black_key_count); key++) {
-    songKeyPressed.push(false);
-    pianoKeyPressed.push(false);
-    mouseKeyPressed.push(false);
+class Keyboard {
+    constructor() {
+        this.keys = new Array(key_count).fill();
+        this.clear();
+    }
+
+    press(key) {
+        this.keys[key].pressed = true;
+    }
+
+    release(key) {
+        this.keys[key].pressed = false;
+    }
+
+    get(key) {
+        return this.keys[key].pressed;
+    }
+
+    clear() {
+        for (var i = 0; i < this.keys.length; i++) {
+            this.keys[i] = {pressed: false};
+        }
+    }
 }
+
+var songKeyboard = new Keyboard();
+var pianoKeyboard = new Keyboard();
+var mouseKeyboard = new Keyboard();
 
 const gradient = [
     0.2, 1.0, 1.0, 0.2
@@ -226,18 +250,18 @@ const gradient = [
 function updateKeys() {
     for (var key = 0; key < white_key_count; key++) {
         var index = white_keys[key];
-        var pressed = (songKeyPressed[index] || pianoKeyPressed[index] || mouseKeyPressed[index]);
+        var pressed = (songKeyboard.get(index) || pianoKeyboard.get(index) || mouseKeyboard.get(index));
         var primaryColor = [];
 
         if (pressed) {
-            primaryColor.push(notes_r, notes_g, notes_b);
+            primaryColor.push(notes_color.r, notes_color.g, notes_color.b);
         } else {
             primaryColor.push(1, 1, 1);
         }
 
         for (var i = 0; i < 4; i++) {
             for (var j = 0; j < 3; j++) {
-                white_key_colors[(key * 4 * 3) + (i * 3) + j] = (primaryColor[j] * gradient[i]);
+                white_key_colors[(key * 4 * 4) + (i * 4) + j] = (primaryColor[j] * gradient[i]);
             }
         }
     }
@@ -248,18 +272,18 @@ function updateKeys() {
 
     for (var key = 0; key < black_key_count; key++) {
         var index = black_keys[key];
-        var pressed = (songKeyPressed[index] || pianoKeyPressed[index] || mouseKeyPressed[index]);
+        var pressed = (songKeyboard.get(index) || pianoKeyboard.get(index) || mouseKeyboard.get(index));
         var primaryColor = [];
 
         if (pressed) {
-            primaryColor.push(notes_r, notes_g, notes_b);
+            primaryColor.push(notes_color.r, notes_color.g, notes_color.b);
         } else {
             primaryColor.push(0, 0, 0);
         }
 
         for (var i = 0; i < 4; i++) {
             for (var j = 0; j < 3; j++) {
-                black_key_colors[(key * 4 * 3) + (i * 3) + j] = (primaryColor[j] * gradient[i]);
+                black_key_colors[(key * 4 * 4) + (i * 4) + j] = (primaryColor[j] * gradient[i]);
             }
         }
     }    
@@ -281,6 +305,8 @@ function resize(gl) {
         (gl.canvas.height !== displayHeight)) {
         gl.canvas.width = displayWidth;
         gl.canvas.height = displayHeight;
+        ctx.canvas.width = displayWidth;
+        ctx.canvas.height = displayHeight;
         
         aspectRatio = (gl.canvas.width / gl.canvas.height);
 
@@ -547,13 +573,20 @@ var previous_time = 0.0;
 
 function onDraw(current_time) {
     var delta_time = (current_time - previous_time);
-
     framerate_average.add(1000.0 / delta_time);
 
     if (isPlaying) {
-        current_tick += millisecondsToTicks(delta_time);
+        var previous_tick = current_tick;
+        current_tick = getTick(current_time);
+        if (loop_end != null) {
+            if ((previous_tick <= loop_end) && (current_tick > loop_end)) {
+                pause();
+                seek(loop_start);
+                synchronize();
+            }
+        }
         if (current_tick >= song_length) {
-            onPause();
+            pause();
         }
     }
 
@@ -564,6 +597,8 @@ function onDraw(current_time) {
     updateNotes();
     updateKeys();
     
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.bindFramebuffer(gl.FRAMEBUFFER, notes_fb);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -574,7 +609,7 @@ function onDraw(current_time) {
     gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
     gl.enableVertexAttribArray(default_position);
     gl.bindBuffer(gl.ARRAY_BUFFER, octaves_cb);
-    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(default_color, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(default_color);
     gl.drawArrays(gl.LINES, 0, (octaves_vertices.length / 2));
 
@@ -583,7 +618,7 @@ function onDraw(current_time) {
     gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
     gl.enableVertexAttribArray(default_position);
     gl.bindBuffer(gl.ARRAY_BUFFER, measures_cb);
-    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(default_color, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(default_color);
     gl.drawArrays(gl.LINES, 0, (measures_vertices.length / 2));
 
@@ -592,7 +627,7 @@ function onDraw(current_time) {
     gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
     gl.enableVertexAttribArray(default_position);
     gl.bindBuffer(gl.ARRAY_BUFFER, notes_cb);
-    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(default_color, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(default_color);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, notes_ib);
     gl.drawElements(gl.TRIANGLES, notes_indices.length, gl.UNSIGNED_SHORT, 0);
@@ -703,7 +738,7 @@ function onDraw(current_time) {
     gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
     gl.enableVertexAttribArray(default_position);
     gl.bindBuffer(gl.ARRAY_BUFFER, timeline_cb);
-    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(default_color, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(default_color);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, timeline_ib);
     gl.drawElements(gl.TRIANGLES, timeline_indices.length, gl.UNSIGNED_SHORT, 0);
@@ -713,13 +748,13 @@ function onDraw(current_time) {
     gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
     gl.enableVertexAttribArray(default_position);
     gl.bindBuffer(gl.ARRAY_BUFFER, white_key_cb);
-    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(default_color, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(default_color);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, white_key_ib);
     gl.drawElements(gl.TRIANGLES, white_key_indices.length, gl.UNSIGNED_SHORT, 0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, white_key_outline_cb);
-    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(default_color, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(default_color);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, white_key_outline_ib);
     gl.drawElements(gl.LINES, white_key_outline_indices.length, gl.UNSIGNED_SHORT, 0);
@@ -728,24 +763,152 @@ function onDraw(current_time) {
     gl.vertexAttribPointer(default_position, 2, gl.FLOAT, true, 0, 0);
     gl.enableVertexAttribArray(default_position);
     gl.bindBuffer(gl.ARRAY_BUFFER, black_key_cb);
-    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(default_color, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(default_color);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_ib);
     gl.drawElements(gl.TRIANGLES, black_key_indices.length, gl.UNSIGNED_SHORT, 0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, black_key_outline_cb);
-    gl.vertexAttribPointer(default_color, 3, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(default_color, 4, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(default_color);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, black_key_outline_ib);
     gl.drawElements(gl.LINES, black_key_outline_indices.length, gl.UNSIGNED_SHORT, 0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, null);  
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    for (var i = (particles.length - 1); i >= 0; i--) {
+        var particle = particles[i];
+        particle.tick(delta_time);
+        if (particle.dead()) {
+            particles.splice(i, 1);
+        } else {
+            particle.draw();
+        }
+    }
     
     previous_time = current_time;
 
     requestAnimationFrame(onDraw);
 }
+
+class Vector2 {
+    constructor(x = 0.0, y = 0.0) {
+        this.x = x;
+        this.y = y;
+    }
+
+    add(rhs) {
+        this.x += rhs.x;
+        this.y += rhs.y;
+    }
+    
+    subtract(rhs) {
+        this.x -= rhs.x;
+        this.y -= rhs.y;
+    }
+
+    scale(scalar) {
+        this.x *= scalar;
+        this.y *= scalar;
+    }
+
+    scaled(scalar) {
+        return new Vector2((this.x * scalar), (this.y * scalar));
+    }
+}
+
+class Color {
+    constructor(r, g, b) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+    }
+}
+
+function accuracy_to_color(accuracy) {
+    // if (accuracy > 0.75) {
+    //     return new Color(0.0, 1.0, 0.0);
+    // } else if (accuracy > 0.50) {
+    //     return new Color(0.0, 1.0, 1.0);
+    // } else if (accuracy > 0.25) {
+    //     return new Color(1.0, 1.0, 0.0);
+    // } else if (accuracy > 0.0) {
+    //     return new Color(1.0, 0.0, 1.0);
+    if (Math.abs(accuracy) > 0.0) {
+        return new Color(0.0, 1.0, 0.0);
+    } else {
+        return new Color(1.0, 0.0, 0.0);
+    }
+}
+
+function accuracy_to_text(accuracy) {
+    if (Math.abs(accuracy > 0.75)) {
+        return "Perfect!";
+    } else if (accuracy > 0.0) {
+        return "Late!";
+    } else if (accuracy < 0.0) {
+        return "Early!";
+    } else {
+        return "Miss!";
+    }
+}
+
+class Particle {
+    constructor(position, velocity, acceleration, lifetime) {
+        this.position = position;
+        this.velocity = velocity;
+        this.acceleration = acceleration;
+        this.lifetime = lifetime;
+        this.age = 0;
+    }
+
+    dead() {
+        return (this.age > this.lifetime);
+    }
+
+    tick(delta) {
+        this.velocity.add(this.acceleration.scaled(delta / 1000.0));
+        this.position.add(this.velocity.scaled(delta / 1000.0));
+        this.age += delta;
+    }
+}
+
+function hsla_to_css(h, s, l, a) {
+    return "hsla("+h+","+s+"%,"+l+"%,"+a+")";
+}
+
+function rgba_to_css(r, g, b, a) {
+    return "rgba("+r+","+g+","+b+","+a+")";
+}
+
+class Points extends Particle {
+    constructor(position, velocity, acceleration, lifetime, amount) {
+        super(position, velocity, acceleration, lifetime);
+        this.amount = amount;
+    }
+
+    draw() {
+        // var hue = this.amount > 75 ? 180 : this.amount > 50 ? 120 : this.amount > 25 ? 60 : 0; //Math.round(120.0 * (this.amount / 100.0));
+        // var saturation = 100;
+        // var luminence = 50;
+        var color = accuracy_to_color(this.amount / 100.0);
+        var alpha = (1.0 - (this.age / this.lifetime));
+        var text = accuracy_to_text(this.amount / 100.0);
+        ctx.font = "20px Times New Roman";
+        ctx.textAlign = "center";
+        //ctx.textBaseline = "middle";
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = rgba_to_css(0.0, 0.0, 0.0, alpha);
+        ctx.fillStyle = rgba_to_css(Math.round(color.r * 255.0), Math.round(color.g * 255.0), Math.round(color.b * 255.0), alpha);//hsla_to_css(hue, saturation, luminence, alpha);
+        ctx.strokeText(text, this.position.x, this.position.y);
+        ctx.fillText(text, this.position.x, this.position.y);
+    }
+}
+
+var particles = [];
 
 function onMIDISuccess(access) {
     var iter = access.inputs.values();
@@ -775,7 +938,7 @@ function onMIDIMessage(message) {
     switch (command) {
         case 144:
             if (velocity > 0) {
-                onNoteOn(note, timestamp);
+                onNoteOn(note, velocity, timestamp);
             } else {
                 onNoteOff(note, timestamp);
             }
@@ -795,13 +958,43 @@ function onMIDIMessage(message) {
 var tempo = 0;
 var previous_beat_timestamp = null;
 var previous_beat_index = null;
+var current_streak = 0;
 
-function onNoteOn(note, timestamp) {
-    pianoKeyPressed[note - 21] = true;
+function getTick(current_time) {
+    return (current_tick + milliseconds_to_ticks(current_time - previous_time));
+}
+
+var notes_timeout = 50; // in milliseconds
+
+// Should we have a notes_sent, notes_played, notes_passed? Should we also have a list of notes played similar to notes_sorted? Turn on/off overlay of played notes? Or switch between song/played notes?
+function onNoteOn(note, velocity, timestamp) {
+    var key = (note - 21);
+    pianoKeyboard.press(key);
+    if (isPlaying) {
+        var tick = getTick(timestamp);// - millisecondsToTicks(getMetronomeDeviation()));
+        if (recording) {
+            recording.press(key, velocity, tick);
+            for (var i = notes_played; i < notes_song.length; i++) {
+                var delta = ticks_to_milliseconds(notes_song.get(i).start - tick); // This is tempo-dependent, convert start to milliseconds instead? Or wait, is it? We started with a timestamp?
+                if (delta > notes_timeout) {
+                    break;
+                } else if (notes_song.get(i).key == key && delta >= -notes_timeout) {
+                    var accuracy = (Math.sign(delta) * (1.0 - (Math.abs(delta) / notes_timeout)));
+                    var notes = recording.get_notes();
+                    notes_song.get(i).accuracy = accuracy;
+                    notes.get(notes.length - 1).accuracy = accuracy;       
+                }
+            }   
+        }     
+    }
 }
 
 function onNoteOff(note, timestamp) {
-    pianoKeyPressed[note - 21] = false;
+    var key = (note - 21);
+    pianoKeyboard.release(key);
+    if (recording) {
+        recording.release(key, getTick(timestamp)); // - millisecondsToTicks(getMetronomeDeviation()));
+    }
 }
 
 function onMetronomeMeasure(timestamp) {
@@ -825,25 +1018,25 @@ function onMetronomeBeat(timestamp) {
 var beats_per_measure = 4;
 
 function updateSync() {
-    if (!isPlaying) {
+    if (isPlaying) {
+        document.getElementById('sync').innerText = Math.round(getMetronomeDeviation()) + ' ms';
+    } else {
         document.getElementById('sync').innerText = '-';
-        return;
     }
-    var deviation = getMetronomeDeviation();
-    if (deviation > (ticks_per_measure / 2)) {
-        deviation = (ticks_per_measure - deviation);
-    } else if (deviation < -(ticks_per_measure / 2)) {
-        deviation = (ticks_per_measure + deviation);
-    }
-    document.getElementById('sync').innerText = Math.round(ticksToMilliseconds(deviation)) + ' ms';
 }
 
 function getMetronomeDeviation() {
-    var now = window.performance.now();
-    var song_tick = (current_tick + millisecondsToTicks(now - previous_time));
+    var current_time = window.performance.now();
+    var song_tick = getTick(current_time);
     var ticks_since_previous_measure_song = (song_tick - (ticks_per_measure * Math.floor(song_tick / ticks_per_measure)));
-    var ticks_since_previous_measure_metronome = ((ticks_per_beat * previous_beat_index) + millisecondsToTicks(now - previous_beat_timestamp));
-    return (ticks_since_previous_measure_song - ticks_since_previous_measure_metronome);
+    var ticks_since_previous_measure_metronome = ((ticks_per_beat * previous_beat_index) + milliseconds_to_ticks(current_time - previous_beat_timestamp));
+    var deviation = (ticks_since_previous_measure_song - ticks_since_previous_measure_metronome);
+    if (deviation > (ticks_per_measure / 2)) {
+        deviation = (-ticks_per_measure + deviation);
+    } else if (deviation < -(ticks_per_measure / 2)) {
+        deviation = (ticks_per_measure + deviation);
+    }
+    return ticks_to_milliseconds(deviation);
 }
 
 var play_timeout_id = null;
@@ -853,9 +1046,9 @@ function synchronize() {
         return;
     }    
     showLoadingScreen('Synchronizing...');
-    var timeout = ticksToMilliseconds(getMetronomeDeviation());
+    var timeout = getMetronomeDeviation();
     if (timeout < 0) {
-        timeout = (ticksToMilliseconds(ticks_per_measure) + timeout);
+        timeout = (ticks_to_milliseconds(ticks_per_measure) + timeout);
     }
     play_timeout_id = setTimeout(play, timeout);
 }
@@ -900,17 +1093,17 @@ function reportTempo(new_tempo) {
 }
 
 function updateOffset() {
-    offset = (window.performance.now() - ticksToMilliseconds(current_tick));
+    offset = (window.performance.now() - ticks_to_milliseconds(current_tick));
 }
 
-canvas.addEventListener('mousedown', onMouseDown);
-canvas.addEventListener('mousemove', onMouseMove);
-canvas.addEventListener('mouseup', onMouseUp);
-canvas.addEventListener('mouseleave', onMouseLeave);
-canvas.addEventListener('touchstart', onTouchStart);
-canvas.addEventListener('touchend', onTouchEnd);
-canvas.addEventListener('touchmove', onTouchMove);
-canvas.addEventListener('touchcancel', onTouchCancel);
+overlay.addEventListener('mousedown', onMouseDown);
+overlay.addEventListener('mousemove', onMouseMove);
+overlay.addEventListener('mouseup', onMouseUp);
+overlay.addEventListener('mouseleave', onMouseLeave);
+overlay.addEventListener('touchstart', onTouchStart);
+overlay.addEventListener('touchend', onTouchEnd);
+overlay.addEventListener('touchmove', onTouchMove);
+overlay.addEventListener('touchcancel', onTouchCancel);
 
 var isMouseDown = false;
 
@@ -973,12 +1166,36 @@ function onTouchCancel(event) {
     onTouchEnd(event);
 }
 
+function onLoop() {
+    if (loop_start == null) {
+        loop_start = thumb_to_tick(timeline_thumb_x);
+    } else if (loop_end == null) {
+        loop_end = thumb_to_tick(timeline_thumb_x);
+        if (loop_end == loop_start) {
+            loop_start = null;
+            loop_end = null;
+        } else if (loop_end < loop_start) {
+            [loop_start, loop_end] = [loop_end, loop_start];
+        }
+    } else {
+        loop_start = null;
+        loop_end = null;
+    }
+}
+
 var timeline_captured_id = null;
 var timeline_leeway = 2.0;
 
-function setTimelineThumbX(x) {
-    var percentage = Math.max(Math.min(((x - timeline_start_x) / (timeline_end_x - timeline_start_x)), 1.0), 0.0);
-    seek(percentage * song_length);
+function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+}
+
+function tick_to_thumb(tick) {
+    return (timeline_start_x + (clamp((tick / song_length), 0.0, 1.0) * timeline_length));
+}
+
+function thumb_to_tick(thumb) {
+    return (clamp(((thumb - timeline_start_x) / timeline_length), 0.0, 1.0) * song_length);
 }
 
 function checkTimelinePressed(id, event) {
@@ -1002,7 +1219,7 @@ function checkTimelinePressed(id, event) {
         (y >= start_y && y <= end_y)) {
         timeline_captured_id = id;
         forcePause();
-        setTimelineThumbX(x);
+        seek(thumb_to_tick(x));
     }
 }
 
@@ -1014,7 +1231,7 @@ function checkTimelineDragged(id, event) {
     var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
     var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
 
-    setTimelineThumbX(x);
+    seek(thumb_to_tick(x));
 }
 
 function checkTimelineReleased(id, event) {
@@ -1025,7 +1242,7 @@ function checkTimelineReleased(id, event) {
     var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
     var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
 
-    setTimelineThumbX(x);
+    seek(thumb_to_tick(x));
     unforcePause();
     
     timeline_captured_id = null;
@@ -1069,102 +1286,204 @@ function checkKeyPressed(id, event) {
     }
     
     checkKeyReleased(id);
-    mouseKeyPressed[pressedKey] = true;
+    mouseKeyboard.press(pressedKey);
     idToKeyMap.set(id, pressedKey);
-    sendNoteOn(pressedKey);
+    send_note_on(pressedKey);
 }
 
 function checkKeyReleased(id) {
     if (idToKeyMap.has(id)) {
         var key = idToKeyMap.get(id);
-        mouseKeyPressed[key] = false;
+        mouseKeyboard.release(key);
         idToKeyMap.delete(id);
-        sendNoteOff(key);
+        send_note_off(key);
     }
 }
 
-function sendNoteOn(key, velocity = 0x3F, timestamp = window.performance.now()) {   
+function send_note_on(key, velocity = 0x3F, timestamp = window.performance.now()) {   
     for (var output of outputs) {         
         output.send([0x90, (key + 21), velocity], timestamp);
     }
 }
 
-function sendNoteOff(key, timestamp = window.performance.now()) {    
+function send_note_off(key, timestamp = window.performance.now()) {    
     for (var output of outputs) {
         output.send([0x80, (key + 21), 0], timestamp);
     }
 }
 
-var sendNotesInterval = 50; // in milliseconds
-var notesSent = 0;
+const Origin = {
+    BEGINNING: 0,
+    CURRENT: 1,
+    END: 2
+};
 
-function onSendNotes() {
-    var end_tick = (current_tick + millisecondsToTicks(sendNotesInterval * 2.0));
-    while (true) {
-        if (!isPlaying) {
-            break;
-        }
-        if (notesSent >= notes_sorted.length) {
-            break;
-        }
-        var note = notes_sorted[notesSent];
-        if (note.start > end_tick) {
-            break;
-        }
-        if (soundOn) {
-            sendNoteOn(note.key, note.velocity, (offset + ticksToMilliseconds(note.start)));
-            sendNoteOff(note.key, (offset + ticksToMilliseconds(note.end)));
-        }
-        notesSent++;
+const Direction = {
+    FORWARD: 0,
+    BACKWARD: 1
+};
+
+class Notes{
+    constructor(notes) {
+        this.notes = notes;
+        this.index = 0;
+        this.interval = 50; // ms
+        this.id = null;
+        this.muted = false;
     }
+
+    get length() {
+        return this.notes.length;
+    }
+
+    get(index) {
+        return this.notes[index];
+    }
+
+    empty() {
+        return (this.length == 0);
+    }
+
+    mute() {
+        this.muted = true;
+    }
+
+    unmute() {
+        this.muted = false;
+    }
+
+    play() {
+        if (this.empty()) {
+            return;
+        }
+        this.stop();
+        var self = this;
+        this.id = setInterval(function() {self.send()}, this.interval);
+    }
+
+    stop() {
+        if (this.id) {
+            clearInterval(this.id);
+            this.id = null;
+        }
+    }
+
+    send() {
+        var end_tick = (current_tick + milliseconds_to_ticks(2 * this.interval));
+        for (; this.index < this.length; this.index++) {
+            if (this.index < 0) {
+                continue;
+            }
+            var note = this.notes[this.index];
+            if (note.start > end_tick) {
+                break;
+            }
+            if (!this.muted) {
+                var note_start_ms = (ticks_to_milliseconds(note.start) + offset);
+                var note_end_ms = (ticks_to_milliseconds(note.end) + offset);                
+                send_note_on(note.key, note.velocity, note_start_ms);
+                send_note_off(note.key, note_end_ms);
+            }
+        }
+    }
+
+    seek(tick, origin, direction) {
+        if (this.empty()) {
+            return;
+        }
+        if (origin == Origin.BEGINNING) {
+            this.index = 0;
+        } else if (origin == Origin.END) {
+            this.index = (this.length - 1);
+        }
+        if (direction == Direction.FORWARD) {
+            for (; this.index < this.length; this.index++) {
+                if (this.index < 0) {
+                    continue;
+                }
+                if (this.notes[this.index].start >= tick) {
+                    break;
+                }
+            }
+        } else {
+            for (; this.index >= 0; this.index--) {
+                if (this.index >= this.length) {
+                    continue;
+                }
+                if (this.notes[this.index].start <= tick) {
+                    this.index++;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+var notes_played = 0;
+
+function onNotePlayed(note) {
+    var x = (((((key_start_x[note.key] + key_end_x[note.key]) / 2.0) * 0.5) + 0.5) * ctx.canvas.width);
+    var y = ((1.0 - (((-1.0 + white_key_height) * 0.5) + 0.5)) * ctx.canvas.height);
+
+    // Create TextParticle here?
+    particles.push(new Points(new Vector2(x, y), new Vector2((Math.random() * 2.0 - 1.0) * 150, -120), new Vector2(0, 200), 1500, Math.round(note.accuracy * 100.0)));    
+}
+
+function onCheckNotesMissed() {
+    var tick = getTick(window.performance.now());
+    for (; notes_played < notes_song.length; notes_played++) {
+        var note = notes_song.get(notes_played);
+        if (note.accuracy != null) {
+            onNoteHit(note);
+        } else if (ticks_to_milliseconds(tick - note.start) > notes_timeout) {
+            onNoteMiss(note);
+        } else {
+            break;
+        }        
+    }
+    document.getElementById("streak").innerText = current_streak;
+    document.getElementById("score").innerText = score;
+}
+
+function onNoteHit(note)
+{
+    onNotePlayed(note);
+    current_streak++;
+    score += Math.round(Math.abs(note.accuracy) * 100);
+}
+
+function onNoteMiss(note)
+{
+    onNotePlayed(note);
+    current_streak = 0;
+    note.accuracy = 0;
 }
 
 function seek(tick) {
     if (tick == current_tick) {
         return;
     }
-
+    function seek_internal(tick, origin, direction) {
+        notes_song.seek(tick, origin, direction);
+        notes_recorded.seek(tick, origin, direction);
+    }
     var previous_tick = current_tick;
     current_tick = tick;
-
     var diff = (current_tick - previous_tick);
     if (diff < 0.0) {
-        if (-diff > (current_tick / 2.0)) {
-            // Forwards from beginning
-            for (var i = 0; i < notesSent; i++) {
-                if (notes_sorted[i].start >= current_tick) {
-                    notesSent = i;
-                    break;
-                }
-            }
+        if (-diff > (current_tick * 0.5)) {
+            seek_internal(tick, Origin.BEGINNING, Direction.FORWARD);
         } else {
-            // Backwards from current
-            for (var i = Math.min(notesSent, (notes_sorted.length - 1)); i >= 0; i--) {
-                if (notes_sorted[i].start <= current_tick) {
-                    notesSent = (i + 1);
-                    break;
-                }
-            }
+            seek_internal(tick, Origin.CURRENT, Direction.BACKWARD);
         }
     } else {
-        if (diff > ((song_length - previous_tick) / 2.0)) {
-            // Backwards from end
-            for (var i = (notes_sorted.length - 1); i >= notesSent; i--) {
-                if (notes_sorted[i].start <= current_tick) {
-                    notesSent = (i + 1);
-                    break;
-                }
-            }
+        if (diff > ((song_length - previous_tick) * 0.5)) {
+            seek_internal(tick, Origin.END, Direction.BACKWARD);
         } else {
-            // Forwards from current
-            for (var i = notesSent; i < notes_sorted.length; i++) {
-                if (notes_sorted[i].start >= current_tick) {
-                    notesSent = i;
-                    break;
-                }
-            }
+            seek_internal(tick, Origin.CURRENT, Direction.FORWARD);
         }
-    }
+    }    
+    notes_played = notes_song.index;
 }
 
 function showLoadingScreen(text) {
@@ -1178,6 +1497,7 @@ function hideLoadingScreen() {
 }
 
 var forcedPauseCount = 0;
+var wasPlaying = false;
 
 function forcePause() {
     if (forcedPauseCount == 0) {
@@ -1197,7 +1517,8 @@ function unforcePause() {
 }
 
 var isPlaying = false;
-var wasPlaying = false;
+var recording = null;
+var score = 0;
 
 function onPlay() {
     if (isPlaying || (forcedPauseCount > 0) || (current_tick >= song_length) || (tempo == 0) || (play_timeout_id != null)) {
@@ -1206,41 +1527,86 @@ function onPlay() {
     synchronize();
 }
 
+var notes_missed_interval = 15;
+var notes_missed_interval_id = null;
+
 function play() {
     hideLoadingScreen();
     isPlaying = true;
+    score = 0;
+    current_streak = 0;
     updateOffset();
-    onSendNotes();
-    setInterval(onSendNotes, sendNotesInterval);
+    if (replay) {
+        notes_recorded.play();
+        notes_song.play();
+    } else {
+        recording = new Recording();
+        for (var i = 0; i < notes_song.length; i++) {
+            notes_song.get(i).accuracy = null;
+        }
+        notes_song.play();
+        notes_missed_interval_id = setInterval(onCheckNotesMissed, notes_missed_interval)
+    }    
     play_timeout_id = null;
 }
 
 function onPause() {
+    pause();
+}
+
+function pause() {
     isPlaying = false;
     if (play_timeout_id != null) {
         clearTimeout(play_timeout_id);
         play_timeout_id = null;
     }
-    clearInterval(onSendNotes);
+    if (replay) {
+        notes_recorded.stop();
+        notes_song.stop();
+    } else {
+        notes_song.stop();
+        if (recording) {
+            notes_recorded = recording.get_notes();
+            recording = null;
+        }
+        if (notes_missed_interval_id != null) {
+            clearInterval(notes_missed_interval_id);
+            notes_missed_interval_id = null;
+        }
+    }
 }
 
 function onStop() {
-    onPause();
-    current_tick = 0.0;
-    notesSent = 0;
+    stop();
 }
 
-var soundOn = true;
+function stop() {
+    pause();
+    seek(0);
+}
+
+var muted = false;
 
 function onToggleSound() {
-    soundOn = !soundOn;    
+    muted = !muted;    
     var src = null;
-    if (soundOn) {
-        src = "./img/soundon.svg";
-    } else {
+    if (muted) {
+        notes_song.mute();
         src = "./img/soundoff.svg";
+    } else {
+        notes_song.unmute();
+        src = "./img/soundon.svg";
     }
     document.getElementById('soundicon').src = src;
+}
+
+var replay = false;
+
+function onToggleReplay() {
+    if (isPlaying) {
+        return;
+    }
+    replay = !replay;
 }
 
 function onFileChanged() {
@@ -1275,8 +1641,29 @@ function notesLeft(midi, indices) {
     return false;
 }
 
+class Range {
+    constructor(start, end) {
+        this.start = start;
+        this.end = end;
+    }
+
+    get start() {
+        return this.start;
+    }
+
+    get end() {
+        return this.end;
+    }
+
+    get length() {
+        return (this.end - this.start);
+    }
+}
+
 var song_length = 0;
 var song_tempo = 0;
+var loop_start = null;
+var loop_end = null;
 
 function loadMidi(midi) {
     ticks_per_beat = midi.header.ticksPerBeat;
@@ -1285,13 +1672,12 @@ function loadMidi(midi) {
     times.fill(0);
     var indices = new Array(midi.tracks.length);
     indices.fill(0);
-    var notes = new Array(midi.tracks.length);
-    for (var i = 0; i < notes.length; i++) {
-        notes[i] = new Map();
-    }
+    var recording = new Recording(midi.tracks.length);
 
     song_length = 0;
     song_tempo = 0;
+    loop_start = null;
+    loop_end = null;
 
     while (notesLeft(midi, indices)) {
         var nextIndex = 0;
@@ -1318,26 +1704,12 @@ function loadMidi(midi) {
 
         switch (nextEvent.type) {
             case 'noteOn': {
-                var note = (nextEvent.noteNumber - 21);
-                if (nextEvent.velocity == 0) {
-                    if (notes[nextIndex].has(note)) {
-                        notes_sorted[notes[nextIndex].get(note)].end = nextTime;
-                        notes[nextIndex].delete(note);
-                    }
-                } else {
-                    notes[nextIndex].set(note, notes_sorted.length);
-                    addNote(note, nextTime, nextEvent.velocity);
-                }
-
+                recording.press((nextEvent.noteNumber - 21), nextEvent.velocity, nextTime, nextIndex);
                 break;
             }
 
             case 'noteOff': {
-                var note = (nextEvent.noteNumber - 21);
-                if (notes[nextIndex].has(note)) {
-                    notes_sorted[notes[nextIndex].get(note)].end = nextTime;
-                    notes[nextIndex].delete(note);
-                }
+                recording.release((nextEvent.noteNumber  - 21), nextTime, nextIndex);
                 break;
             }
 
@@ -1352,6 +1724,12 @@ function loadMidi(midi) {
                 song_length = Math.max(song_length, nextTime);
             }
         }
+    }
+
+    notes_song = recording.get_notes();
+
+    if (muted) {
+        notes_song.mute();
     }
 }
 
@@ -1376,14 +1754,18 @@ var timeline_vertices = [];
 var timeline_colors = [];
 var timeline_indices = [];
 
-var timeline_start_x = 30;
-var timeline_start_y = 75;
-var timeline_end_x = 30;
-var timeline_end_y = 70;
+var timeline_start_x = null;
+var timeline_start_y = null;
+var timeline_end_x = null;
+var timeline_end_y = null;
+var timeline_length = null;
 
-var timeline_thumb_x = timeline_start_x;
-var timeline_thumb_y = ((timeline_end_y + timeline_start_y) / 2.0);
+var timeline_thumb_x = null;
+var timeline_thumb_y = null;
 var timeline_thumb_radius = 0.02;
+
+var timeline_loop_start_x = null;
+var timeline_loop_end_x = null;
 
 function updateTimeline() {
     timeline_vertices = [];
@@ -1400,14 +1782,28 @@ function updateTimeline() {
     timeline_start_y = (1.0 - pixelsToUnitsY(93));
     timeline_end_x = 0.9;
     timeline_end_y = (1.0 - pixelsToUnitsY(90));
+    timeline_length = (timeline_end_x - timeline_start_x);
     var radius = ((timeline_end_y - timeline_start_y) / 2.0);
-    timeline_thumb_x = (timeline_start_x + ((timeline_end_x - timeline_start_x) * percentage));
+    timeline_thumb_x = (timeline_start_x + (timeline_length * percentage));
     timeline_thumb_y = ((timeline_end_y + timeline_start_y) / 2.0);
     timeline_thumb_radius = pixelsToUnitsY(8);
 
-    createRoundedRectangle(timeline_vertices, timeline_colors, timeline_indices, timeline_start_x, timeline_start_y, timeline_end_x, timeline_end_y, radius, 1.0, 1.0, 1.0);
-    createRoundedRectangle(timeline_vertices, timeline_colors, timeline_indices, timeline_thumb_x, timeline_start_y, timeline_end_x, timeline_end_y, radius, 0.2, 0.2, 0.2);
-    createCircle(timeline_vertices, timeline_colors, timeline_indices, timeline_thumb_x, timeline_thumb_y, timeline_thumb_radius, 1.0, 1.0, 1.0);
+    createRoundedRectangle(timeline_vertices, timeline_colors, timeline_indices, timeline_start_x, timeline_start_y, timeline_end_x, timeline_end_y, radius, 0.2, 0.2, 0.2, 1.0);
+    createRoundedRectangle(timeline_vertices, timeline_colors, timeline_indices, timeline_start_x, timeline_start_y, timeline_thumb_x, timeline_end_y, radius, 1.0, 1.0, 1.0, 1.0);
+
+    var thumb_color = new Color(1.0, 1.0, 1.0);
+    if (loop_start != null) {
+        var timeline_loop_start_x = tick_to_thumb(loop_start);
+        var timeline_loop_end_x = ((loop_end != null) ? tick_to_thumb(loop_end) : timeline_thumb_x);
+        if (timeline_loop_end_x < timeline_loop_start_x) {
+            [timeline_loop_start_x, timeline_loop_end_x] = [timeline_loop_end_x, timeline_loop_start_x];
+        }
+        createRoundedRectangle(timeline_vertices, timeline_colors, timeline_indices, timeline_loop_start_x, timeline_start_y, timeline_loop_end_x, timeline_end_y, radius, notes_color.r, notes_color.g, notes_color.b, 1.0);
+        if ((timeline_thumb_x >= timeline_loop_start_x) && (timeline_thumb_x <= timeline_loop_end_x)) {
+            thumb_color = notes_color;
+        }
+    }
+    createCircle(timeline_vertices, timeline_colors, timeline_indices, timeline_thumb_x, timeline_thumb_y, timeline_thumb_radius, thumb_color.r, thumb_color.g, thumb_color.b, 1.0);   
 
     gl.bindBuffer(gl.ARRAY_BUFFER, timeline_vb);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(timeline_vertices), gl.DYNAMIC_DRAW);
@@ -1420,31 +1816,60 @@ function updateTimeline() {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 }
 
-var notes_sorted = [];
+class Recording {
+    constructor(tracks = 1) {
+        this.active_notes = new Array(tracks);
+        for (var i = 0; i < tracks; i++) {
+            this.active_notes[i] = new Map();
+        }
+        this.notes = [];
+    }
 
-function addNote(key, start, velocity) {
-    notes_sorted.push({'key': key, 'start': start, 'end': null, 'velocity': velocity});
-}
+    press(key, velocity, timestamp, track = 0) {
+        if (this.active_notes[track].has(key) || (velocity == 0)) {
+            this.release(key, timestamp);
+        } else {
+            this.active_notes[track].set(key, this.notes.length);
+            this.notes.push({'key': key, 'start': timestamp, 'end': null, 'velocity': velocity, 'accuracy': null});
+        }
+    }
+
+    release(key, timestamp, track = 0) {
+        if (this.active_notes[track].has(key)) {
+            this.notes[this.active_notes[track].get(key)].end = timestamp;
+            this.active_notes[track].delete(key);
+        }
+    }
+
+    get_notes() {
+        return new Notes(this.notes);
+    }
+};
+
+var notes_song = new Notes([]);
+var notes_recorded = new Notes([]);
 
 var zoom = 1.0; // in measures
 var current_tick = 0.0; // in ticks
 var offset = 0.0; // in milliseconds
 
-function ticksToMilliseconds(ticks) {
+function ticks_to_milliseconds(ticks) {
     return ((60000.0 / (tempo * ticks_per_beat)) * ticks);
 } 
 
-function millisecondsToTicks(milliseconds) {
+function milliseconds_to_ticks(milliseconds) {
     return (milliseconds / (60000.0 / (tempo * ticks_per_beat)));
 }
 
 var measure_r = 0.6;
 var measure_g = 0.6;
 var measure_b = 0.6;
+var measure_a = 1.0;
 
 var beat_r = 0.2;
 var beat_g = 0.2;
 var beat_b = 0.2;
+var beat_a = 1.0;
 
 var measures_vertices = [];
 var measures_colors = [];
@@ -1478,9 +1903,9 @@ function updateMeasures() {
         measures_vertices.push(start_x, start_y, end_x, end_y);
 
         if (beat % beats_per_measure == 0) {
-            measures_colors.push(measure_r, measure_g, measure_b, measure_r, measure_g, measure_b);
+            measures_colors.push(measure_r, measure_g, measure_b, measure_a, measure_r, measure_g, measure_b, measure_a);
         } else {
-            measures_colors.push(beat_r, beat_g, beat_b, beat_r, beat_g, beat_b);
+            measures_colors.push(beat_r, beat_g, beat_b, beat_a, beat_r, beat_g, beat_b, beat_a);
         }
     }
 
@@ -1492,14 +1917,10 @@ function updateMeasures() {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 }
 
-var notes_r = 0.0;
-var notes_g = 0.0;
-var notes_b = 0.0;
+var notes_color = new Color(0.0, 0.0, 0.0);
 
 function onColorChanged(color) {
-    notes_r = (color.r / 255.0);
-    notes_g = (color.g / 255.0);
-    notes_b = (color.b / 255.0);
+    notes_color = new Color((color.r / 255.0), (color.g / 255.0), (color.b / 255.0));
 }
 
 jscolor.trigger('change');
@@ -1512,10 +1933,12 @@ function updateNotes() {
     var start_tick = current_tick;
     var end_tick = (start_tick + (beats_per_measure * ticks_per_beat * zoom) - 1);
 
-    songKeyPressed.fill(false);
+    songKeyboard.clear();
 
-    for (var i = 0; i < notes_sorted.length; i++) {
-        var note = notes_sorted[i];
+    var alpha = (document.getElementById("opacityrange").value / 100.0);
+
+    for (var i = 0; i < notes_song.length; i++) {
+        var note = notes_song.get(i);
         if (note.start > end_tick) {
             break;
         }
@@ -1525,7 +1948,7 @@ function updateNotes() {
 
         if ((note.start <= start_tick) && 
             (note.end >= start_tick)) {
-                songKeyPressed[note.key] = true;
+                songKeyboard.press(note.key);
         }
 
         var start_time = (note.start - start_tick);
@@ -1540,10 +1963,38 @@ function updateNotes() {
         var end_x = key_end_x[note.key];
         var end_y = (-1.0 + white_key_height + (units_per_tick * end_time));
         var radius = 0.02;
-
-        createRoundedRectangle(notes_vertices, notes_colors, notes_indices, start_x, start_y, end_x, end_y, radius, notes_r, notes_g, notes_b);
+        var color = (replay ? ((note.accuracy != null) ? accuracy_to_color(note.accuracy) : new Color(0.5, 0.5, 0.5)) : notes_color);
+        
+        createRoundedRectangle(notes_vertices, notes_colors, notes_indices, start_x, start_y, end_x, end_y, radius, color.r, color.g, color.b, 1.0);//, 1.0 - alpha);                
     }
 
+    if (replay) {
+        for (var i = 0; i < notes_recorded.length; i++) {
+            var note = notes_recorded.get(i);
+            if (note.start > end_tick) {
+                break;
+            }
+            if (note.end < start_tick) {
+                continue;
+            }
+
+            var start_time = (note.start - start_tick);
+            var end_time = (note.end - start_tick);
+
+            var total_height = (2.0 - white_key_height);
+            var total_duration = (end_tick - start_tick);
+            var units_per_tick = (total_height / total_duration);
+
+            var start_x = key_start_x[note.key];
+            var start_y = (-1.0 + white_key_height + (units_per_tick * start_time));
+            var end_x = key_end_x[note.key];
+            var end_y = (-1.0 + white_key_height + (units_per_tick * end_time));
+            var radius = 0.02;
+
+            createRoundedRectangle(notes_vertices, notes_colors, notes_indices, start_x, start_y, end_x, end_y, radius, 1.0, 1.0, 1.0, alpha);//note.accuracy ? 0.0 : 1.0, note.accuracy ? 1.0 : 0.0, 0.0, /*0.6*/alpha);
+        }
+    }
+    
     gl.bindBuffer(gl.ARRAY_BUFFER, notes_vb);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(notes_vertices), gl.DYNAMIC_DRAW);
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
@@ -1555,43 +2006,43 @@ function updateNotes() {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
 }
 
-function createLine(vertices, colors, indices, start_x, start_y, end_x, end_y, color_r, color_g, color_b) {
+function createLine(vertices, colors, indices, start_x, start_y, end_x, end_y, color_r, color_g, color_b, color_a) {
     var index_start = (vertices.length / 2);
     vertices.push(start_x, start_y, end_x, end_y);
-    colors.push(color_r, color_g, color_b, color_r, color_g, color_b);
+    colors.push(color_r, color_g, color_b, color_a, color_r, color_g, color_b, color_a);
     indices.push((index_start + 0), (index_start + 1));
 }
 
-function createCircle(vertices, colors, indices, center_x, center_y, radius, color_r, color_g, color_b) {
+function createCircle(vertices, colors, indices, center_x, center_y, radius, color_r, color_g, color_b, color_a) {
     radius_y = radius;
     radius_x = radius_y / aspectRatio;
     var index_start = (vertices.length / 2);
     var divisions = 30;
     vertices.push(center_x, center_y);
-    colors.push(color_r, color_g, color_b);
+    colors.push(color_r, color_g, color_b, color_a);
     var angle = 0.0;
     for (var i = 0; i < divisions; i++) {
         var x = (center_x + (Math.cos(angle) * radius_x));
         var y = (center_y + (Math.sin(angle) * radius_y));
         vertices.push(x, y);
-        colors.push(color_r, color_g, color_b);
+        colors.push(color_r, color_g, color_b, color_a);
         indices.push((index_start + 0), (index_start + i + 1), (index_start + i + 2));
         angle += ((2 * Math.PI) / divisions);
     }
     var x = (center_x + (Math.cos(angle) * radius_x));
     var y = (center_y + (Math.sin(angle) * radius_y));
     vertices.push(x, y);
-    colors.push(color_r, color_g, color_b);
+    colors.push(color_r, color_g, color_b, color_a);
 }
 
-function createRectangle(vertices, colors, indices, start_x, start_y, end_x, end_y, color_r, color_g, color_b) {
+function createRectangle(vertices, colors, indices, start_x, start_y, end_x, end_y, color_r, color_g, color_b, color_a) {
     var index_start = (vertices.length / 2);
     vertices.push(start_x, start_y, start_x, end_y, end_x, end_y, end_x, start_y);
-    colors.push(color_r, color_g, color_b, color_r, color_g, color_b, color_r, color_g, color_b, color_r, color_g, color_b);    
+    colors.push(color_r, color_g, color_b, color_a, color_r, color_g, color_b, color_a, color_r, color_g, color_b, color_a, color_r, color_g, color_b, color_a);    
     indices.push((index_start + 0), (index_start + 1), (index_start + 2), (index_start + 0), (index_start + 2), (index_start + 3));
 }
 
-function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end_x, end_y, radius, color_r, color_g, color_b) {
+function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end_x, end_y, radius, color_r, color_g, color_b, color_a) {
     var radius_max_x = ((end_x - start_x) / 2.0);
     var radius_max_y = ((end_y - start_y) / 2.0);
     var radius_y = Math.min(radius, radius_max_y);
@@ -1627,19 +2078,19 @@ function createRoundedRectangle(vertices, colors, indices, start_x, start_y, end
         var center_x = centers_x[i];
         var center_y = centers_y[i];
         vertices.push(center_x, center_y);
-        colors.push(color_r, color_g, color_b);
+        colors.push(color_r, color_g, color_b, color_a);
         for (var j = 0; j < divisions; j++) {
             var x = (center_x + (Math.cos(angle) * radius_x));
             var y = (center_y + (Math.sin(angle) * radius_y));
             vertices.push(x, y);
-            colors.push(color_r, color_g, color_b);
+            colors.push(color_r, color_g, color_b, color_a);
             indices.push((corner_start + 0), (corner_start + j + 1), (corner_start + j + 2));
             angle += (Math.PI / 2 / divisions);
         }
         var x = (center_x + (Math.cos(angle) * radius_x));
         var y = (center_y + (Math.sin(angle) * radius_y));
         vertices.push(x, y);
-        colors.push(color_r, color_g, color_b);
+        colors.push(color_r, color_g, color_b, color_a);
     }
 
     for (var i = 0; i < 4; i++) {

@@ -14,8 +14,15 @@
                 margin: 0;
                 background-color: white;
             }
-            canvas{
-                background-color: white;
+            #canvas{
+                position:absolute;
+                width: 100vw;
+                height: 100vh;
+            }
+            #overlay{
+                position:absolute;
+                width: 100vw;
+                height: 100vh;
             }
             .info {
                 position: absolute;
@@ -48,11 +55,6 @@
                 margin-left: 2.5vw;
                 margin-right: 2.5vw;
             }
-            #canvas {
-                display: block;
-                width: 100vw;
-                height: 100vh;
-            }
             #tempo {
                 color: gray;
             }
@@ -62,8 +64,17 @@
             #sync {
                 color: gray;
             }
+            #streak {
+                color: gray;
+            }
+            #score {
+                color: gray;
+            }
             #framerate {
                 color: gray;
+            }
+            #opacityrange {
+                width: 150px;
             }
             #loadingtext {
                 position: absolute;
@@ -129,6 +140,14 @@
                 <input id="stop" type="button" class="hidden" onclick="onStop()"/>
             </label>
             <label>
+                <img src="./img/repeat.svg" class="buttons"/>
+                <input id="loop" type="button" class="hidden" onclick="onLoop()"/>
+            </label>
+            <label>
+                <img src="./img/music.svg" class="buttons"/>
+                <input id="togglereplay" type="button" class="hidden" onclick="onToggleReplay()"/>
+            </label>
+            <label>
                 <img id="soundicon" src="./img/soundon.svg" class="buttons"/>
                 <input id="togglesound" type="button" class="hidden" onclick="onToggleSound()"/>
             </label>
@@ -153,12 +172,27 @@
                 <div id="framerate">0</div>
             </div>
             <div>
+                <div>Streak:</div>
+                <div id="streak">0</div>
+            </div>
+            <div>
+                <div>Score:</div>
+                <div id="score">0</div>
+            </div>
+            <div>
                 <div>Color:</div>
                 <button id="colorpicker" data-jscolor="{onInput:'onColorChanged(this.channels)', onChange:'onColorChanged(this.channels)', preset:'large dark', value:'FF6BE6', previewSize:40}" class="jscolor" type="button"></button>
+            </div>
+            <div>
+                <div>Opacity:</div> 
+                <input type="range" min="1" max="100" value="50" id="opacityrange">
             </div>
         </div>
         <div>
             <canvas id="canvas"></canvas>
+        </div>
+        <div>            
+            <canvas id="overlay"></canvas>
         </div>
         <div id="loadingscreen">
             <div id="spinner"></div>            
