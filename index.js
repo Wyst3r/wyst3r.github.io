@@ -804,10 +804,18 @@ class Vector2 {
         this.x += rhs.x;
         this.y += rhs.y;
     }
+
+    added(rhs) {
+        return new Vector2((this.x + rhs.x), (this.y + rhs.y));
+    }
     
     subtract(rhs) {
         this.x -= rhs.x;
         this.y -= rhs.y;
+    }
+
+    subtracted(rhs) {
+        return new Vector2((this.x - rhs.x), (this.y - rhs.y));
     }
 
     scale(scalar) {
@@ -882,6 +890,30 @@ function hsla_to_css(h, s, l, a) {
 
 function rgba_to_css(r, g, b, a) {
     return "rgba("+r+","+g+","+b+","+a+")";
+}
+
+function gl_to_2d(point) {
+    var x = ((0.0 + ((point.x * 0.5) + 0.5)) * ctx.canvas.width);
+    var y = ((1.0 - ((point.y * 0.5) + 0.5)) * ctx.canvas.height);
+
+    return new Vector2(x, y);
+}
+
+class Flash extends Particle {
+    constructor(lifetime, key) {
+        super(new Vector2(0.0, 0.0), new Vector2(0.0, 0.0), new Vector2(0.0, 0.0), lifetime);
+        this.key = key;
+    }
+
+    draw() {
+        var start = gl_to_2d(new Vector2(key_start_x[this.key], -1.0));
+        var end = gl_to_2d(new Vector2(key_end_x[this.key], 1.0));
+        var size = end.subtracted(start);
+        var color = new Color(1.0, 0.0, 0.0);
+        var alpha = (1.0 - (this.age / this.lifetime));
+        ctx.fillStyle = rgba_to_css(Math.round(color.r * 255), Math.round(color.g * 255), Math.round(color.b * 255), alpha);
+        ctx.fillRect(start.x, start.y, size.x, size.y);
+    }
 }
 
 class Points extends Particle {
@@ -1109,6 +1141,7 @@ var isMouseDown = false;
 
 function onMouseDown(event) {
     checkTimelinePressed('mouse', event);
+    checkSomethingPressed('mouse', event);
     checkKeyPressed('mouse', event);
     isMouseDown = true;
 }
@@ -1116,6 +1149,7 @@ function onMouseDown(event) {
 function onMouseMove(event) {
     if (isMouseDown) {
         checkTimelineDragged('mouse', event);
+        checkSomethingDragged('mouse', event);
         checkKeyPressed('mouse', event);
     }
 }
@@ -1123,6 +1157,7 @@ function onMouseMove(event) {
 function onMouseUp(event) {
     isMouseDown = false;
     checkTimelineReleased('mouse', event);
+    checkSomethingReleased('mouse', event);
     checkKeyReleased('mouse');
 }
 
@@ -1136,6 +1171,7 @@ function onTouchStart(event) {
     event.preventDefault();    
     for (var touch of event.changedTouches) {
         checkTimelinePressed(touch.identifier, touch);
+        checkSomethingPressed(touch.identifier, touch);
         checkKeyPressed(touch.identifier, touch);
         currentTouches.set(touch.identifier, touch);
     }
@@ -1146,6 +1182,7 @@ function onTouchEnd(event) {
     for (var touch of event.changedTouches) {
         if (currentTouches.has(touch.identifier)) {
             checkTimelineReleased(touch.identifier, touch);
+            checkSomethingReleased(touch.identifier, touch);
             checkKeyReleased(touch.identifier);
             currentTouches.delete(touch.identifier);
         }
@@ -1157,6 +1194,7 @@ function onTouchMove(event) {
     for (var touch of event.changedTouches) {
         if (currentTouches.has(touch.identifier)) {
             checkTimelineDragged(touch.identifier, touch);
+            checkSomethingDragged(touch.identifier, touch);
             checkKeyPressed(touch.identifier, touch);
         }
     }
@@ -1248,6 +1286,70 @@ function checkTimelineReleased(id, event) {
     timeline_captured_id = null;
 }
 
+var something_captured_id = null;
+var something_previous_y = null;
+
+function checkSomethingPressed(id, event) {
+    if (song_length == 0) {
+        return;
+    }
+
+    if (something_captured_id && (id != something_captured_id)) {
+        return;
+    }
+
+    var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
+    var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
+
+    var start_x = -1.0;
+    var start_y = (-1.0 + white_key_height);
+    var end_x = 1.0;
+    var end_y = ((timeline_thumb_y - (timeline_thumb_radius * timeline_leeway)) - Number.EPSILON);
+    
+    if ((x >= start_x && x <= end_x) &&
+        (y >= start_y && y <= end_y)) {
+        something_captured_id = id;
+        something_previous_y = y;
+        forcePause();
+    }
+}
+
+function checkSomethingDragged(id, event) {
+    if (id != something_captured_id) {
+        return;
+    }
+
+    var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
+    var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
+
+    var units_per_tick = ((2.0 - white_key_height) / (beats_per_measure * ticks_per_beat * zoom));
+    var units = (y - something_previous_y);
+    var ticks = (units / units_per_tick);
+    
+    seek(current_tick - ticks);
+
+    something_previous_y = y;
+}
+
+function checkSomethingReleased(id, event) {
+    if (id != something_captured_id) {
+        return;
+    }
+
+    var x = (-1.0 + (2.0 * (event.pageX / window.innerWidth)));
+    var y = (1.0 - (2.0 * (event.pageY / window.innerHeight)));
+
+    var units_per_tick = ((2.0 - white_key_height) / (beats_per_measure * ticks_per_beat * zoom));
+    var units = (y - something_previous_y);
+    var ticks = (units / units_per_tick);
+
+    seek(current_tick - ticks);
+    unforcePause();
+    
+    something_captured_id = null;
+    something_previous_y = null;
+}
+
 var idToKeyMap = new Map();
 
 function checkKeyPressed(id, event) {
@@ -1300,6 +1402,7 @@ function checkKeyReleased(id) {
     }
 }
 
+// Drums = Channel 10 (0x99, 0x89)
 function send_note_on(key, velocity = 0x3F, timestamp = window.performance.now()) {   
     for (var output of outputs) {         
         output.send([0x90, (key + 21), velocity], timestamp);
@@ -1422,11 +1525,11 @@ class Notes{
 var notes_played = 0;
 
 function onNotePlayed(note) {
-    var x = (((((key_start_x[note.key] + key_end_x[note.key]) / 2.0) * 0.5) + 0.5) * ctx.canvas.width);
-    var y = ((1.0 - (((-1.0 + white_key_height) * 0.5) + 0.5)) * ctx.canvas.height);
+    //var x = (((((key_start_x[note.key] + key_end_x[note.key]) / 2.0) * 0.5) + 0.5) * ctx.canvas.width);
+    //var y = ((1.0 - (((-1.0 + white_key_height) * 0.5) + 0.5)) * ctx.canvas.height);
 
     // Create TextParticle here?
-    particles.push(new Points(new Vector2(x, y), new Vector2((Math.random() * 2.0 - 1.0) * 150, -120), new Vector2(0, 200), 1500, Math.round(note.accuracy * 100.0)));    
+    //particles.push(new Points(new Vector2(x, y), new Vector2((Math.random() * 2.0 - 1.0) * 150, -120), new Vector2(0, 200), 1500, Math.round(note.accuracy * 100.0)));    
 }
 
 function onCheckNotesMissed() {
@@ -1452,8 +1555,8 @@ function onNoteHit(note)
     score += Math.round(Math.abs(note.accuracy) * 100);
 }
 
-function onNoteMiss(note)
-{
+function onNoteMiss(note){
+    particles.push(new Flash(ticks_to_milliseconds(ticks_per_measure / 32.0), note.key));
     onNotePlayed(note);
     current_streak = 0;
     note.accuracy = 0;
@@ -1463,6 +1566,7 @@ function seek(tick) {
     if (tick == current_tick) {
         return;
     }
+    tick = clamp(tick, 0, song_length);
     function seek_internal(tick, origin, direction) {
         notes_song.seek(tick, origin, direction);
         notes_recorded.seek(tick, origin, direction);
