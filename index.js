@@ -1085,7 +1085,7 @@ function synchronize() {
     play_timeout_id = setTimeout(play, timeout);
 }
 
-var tempo_average = new MovingAverage(4);
+var tempo_average = new MovingAverage(8);
 
 function updateTempo(new_tempo) {
     tempo = new_tempo;
@@ -1100,6 +1100,7 @@ function updateTempo(new_tempo) {
 }
 
 var tempo_stable = true;
+var tempo_unstable_count = 0;
 var tempo_stable_count = 0;
 
 function reportTempo(new_tempo) {
@@ -1107,12 +1108,16 @@ function reportTempo(new_tempo) {
     new_tempo = Math.round(tempo_average.get());
     if (new_tempo != tempo) {
         if (tempo_stable) {
-            tempo_stable = false;
-            forcePause();
-            showLoadingScreen('Detecting tempo...');
+            tempo_unstable_count++;
+            if (tempo_unstable_count >= 3) {
+                tempo_stable = false;
+                forcePause();
+                showLoadingScreen('Detecting tempo...');
+            }
+        } else {
+            tempo_stable_count = 0;
+            updateTempo(new_tempo);
         }
-        tempo_stable_count = 0;
-        updateTempo(new_tempo);
     } else if (!tempo_stable) {
         tempo_stable_count++;
         if (tempo_stable_count >= 3) {
@@ -1121,6 +1126,8 @@ function reportTempo(new_tempo) {
             hideLoadingScreen();
             unforcePause();
         }
+    } else {
+        tempo_unstable_count = 0;
     }
 }
 
