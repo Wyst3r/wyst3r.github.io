@@ -900,18 +900,18 @@ function gl_to_2d(point) {
 }
 
 class Flash extends Particle {
-    constructor(lifetime, key) {
+    constructor(lifetime, key, color) {
         super(new Vector2(0.0, 0.0), new Vector2(0.0, 0.0), new Vector2(0.0, 0.0), lifetime);
         this.key = key;
+        this.color = color;
     }
 
     draw() {
         var start = gl_to_2d(new Vector2(key_start_x[this.key], -1.0));
         var end = gl_to_2d(new Vector2(key_end_x[this.key], 1.0));
         var size = end.subtracted(start);
-        var color = new Color(1.0, 0.0, 0.0);
         var alpha = (1.0 - (this.age / this.lifetime));
-        ctx.fillStyle = rgba_to_css(Math.round(color.r * 255), Math.round(color.g * 255), Math.round(color.b * 255), alpha);
+        ctx.fillStyle = rgba_to_css(Math.round(this.color.r * 255), Math.round(this.color.g * 255), Math.round(this.color.b * 255), alpha);
         ctx.fillRect(start.x, start.y, size.x, size.y);
     }
 }
@@ -996,7 +996,12 @@ function getTick(current_time) {
     return (current_tick + milliseconds_to_ticks(current_time - previous_time));
 }
 
-var notes_timeout = 50; // in milliseconds
+function getTimeout() {
+    var difficulty = (document.getElementById("difficulty").value / 100.0);
+    var divisor = Math.pow(2.0, (4.0 + (difficulty * (6.0 - 4.0))));
+
+    return (((60000.0 / tempo) * 4.0) / divisor);
+}
 
 // Should we have a notes_sent, notes_played, notes_passed? Should we also have a list of notes played similar to notes_sorted? Turn on/off overlay of played notes? Or switch between song/played notes?
 function onNoteOn(note, velocity, timestamp) {
@@ -1008,10 +1013,11 @@ function onNoteOn(note, velocity, timestamp) {
             recording.press(key, velocity, tick);
             for (var i = notes_played; i < notes_song.length; i++) {
                 var delta = ticks_to_milliseconds(notes_song.get(i).start - tick); // This is tempo-dependent, convert start to milliseconds instead? Or wait, is it? We started with a timestamp?
-                if (delta > notes_timeout) {
+                var timeout = getTimeout();
+                if (delta > timeout) {
                     break;
-                } else if (notes_song.get(i).key == key && delta >= -notes_timeout) {
-                    var accuracy = (Math.sign(delta) * (1.0 - (Math.abs(delta) / notes_timeout)));
+                } else if (notes_song.get(i).key == key && delta >= -timeout) {
+                    var accuracy = (Math.sign(delta) * (1.0 - (Math.abs(delta) / timeout)));
                     var notes = recording.get_notes();
                     notes_song.get(i).accuracy = accuracy;
                     notes.get(notes.length - 1).accuracy = accuracy;       
@@ -1545,7 +1551,7 @@ function onCheckNotesMissed() {
         var note = notes_song.get(notes_played);
         if (note.accuracy != null) {
             onNoteHit(note);
-        } else if (ticks_to_milliseconds(tick - note.start) > notes_timeout) {
+        } else if (ticks_to_milliseconds(tick - note.start) > getTimeout()) {
             onNoteMiss(note);
         } else {
             break;
@@ -1557,13 +1563,14 @@ function onCheckNotesMissed() {
 
 function onNoteHit(note)
 {
+    particles.push(new Flash(ticks_to_milliseconds(ticks_per_measure / 32.0), note.key, new Color(0.0, 1.0, 0.0)));
     onNotePlayed(note);
     current_streak++;
     score += Math.round(Math.abs(note.accuracy) * 100);
 }
 
 function onNoteMiss(note){
-    particles.push(new Flash(ticks_to_milliseconds(ticks_per_measure / 32.0), note.key));
+    particles.push(new Flash(ticks_to_milliseconds(ticks_per_measure / 32.0), note.key, new Color(1.0, 0.0, 0.0)));
     onNotePlayed(note);
     current_streak = 0;
     note.accuracy = 0;
@@ -2046,7 +2053,7 @@ function updateNotes() {
 
     songKeyboard.clear();
 
-    var alpha = (document.getElementById("opacityrange").value / 100.0);
+    var alpha = 0.5;
 
     for (var i = 0; i < notes_song.length; i++) {
         var note = notes_song.get(i);
